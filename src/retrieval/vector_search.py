@@ -40,11 +40,16 @@ class VectorSearchEngine:
         # Xác định thiết bị tính toán: cuda nếu có, ngược lại cpu
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
-        # Tái sử dụng model đã nạp
-        model_key = f"{self.model_name}_{self.device}"
+        # Tái sử dụng model đã nạp, hỗ trợ tự động fallback sang CPU nếu GPU đầy VRAM
+        model_key = f"{self.model_name}"
         if model_key not in _MODEL_CACHE:
-            logger.info(f"Khởi tạo Embedding Model: {self.model_name} trên {self.device.upper()}")
-            _MODEL_CACHE[model_key] = SentenceTransformer(self.model_name, device=self.device)
+            try:
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                logger.info(f"Khởi tạo Embedding Model: {self.model_name} trên {device.upper()}")
+                _MODEL_CACHE[model_key] = SentenceTransformer(self.model_name, device=device)
+            except Exception as e:
+                logger.warning(f"Không thể khởi tạo trên GPU ({e}), tự động fallback sang CPU...")
+                _MODEL_CACHE[model_key] = SentenceTransformer(self.model_name, device="cpu")
         self.embedder = _MODEL_CACHE[model_key]
 
         # Khởi tạo Qdrant Client (ưu tiên Local on-disk persistent path)

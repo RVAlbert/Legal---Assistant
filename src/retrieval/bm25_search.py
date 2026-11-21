@@ -11,11 +11,21 @@ from src.retrieval.models import SearchResult
 logger = get_logger("bm25_search")
 
 
-def tokenize_vietnamese(text: str) -> List[str]:
+VIETNAMESE_STOPWORDS = {
+    "là", "có", "được", "không", "khôn", "thì", "của", "và", "các", "cho", "với",
+    "những", "gì", "sao", "nào", "thế", "hay", "ở", "khi", "ra", "vào",
+}
+
+
+def tokenize_vietnamese(text: str, filter_stopwords: bool = False) -> List[str]:
     """Tokenize tiếng Việt giữ lại toàn bộ chữ có dấu, số Điều, hạng bằng lái (A1, B1...), số thập phân."""
     text = text.lower().strip()
     # Tách từ tiếng Việt, số, mã điều luật (ví dụ: điều, khoản, a1, b2, 36/2024/qh15)
     tokens = re.findall(r"[\w]+(?:/[\w]+)*", text)
+    if filter_stopwords:
+        filtered = [t for t in tokens if t not in VIETNAMESE_STOPWORDS]
+        if filtered:
+            return filtered
     return tokens
 
 
@@ -64,7 +74,7 @@ class BM25SearchEngine:
         if not self.bm25 or not self.chunks:
             raise RuntimeError("BM25 index chưa được khởi tạo hoặc load.")
 
-        query_tokens = tokenize_vietnamese(query)
+        query_tokens = tokenize_vietnamese(query, filter_stopwords=True)
         if not query_tokens:
             return []
 

@@ -3,6 +3,7 @@ from src.common.config import get_settings
 from src.common.logger import get_logger
 from src.retrieval.bm25_search import BM25SearchEngine
 from src.retrieval.models import SearchResult
+from src.retrieval.query_expander import QueryExpander
 from src.retrieval.vector_search import VectorSearchEngine
 
 logger = get_logger("hybrid_search")
@@ -31,12 +32,17 @@ class HybridSearchEngine:
         top_k: int = 8,
         candidate_k: int = 20,
     ) -> List[SearchResult]:
-        """Thực hiện tìm kiếm song song BM25 và Semantic, sau đó hợp nhất qua RRF."""
+        """Thực hiện tìm kiếm song song BM25 và Semantic sau khi chuẩn hóa/mở rộng ngữ nghĩa đời thường."""
+        # Chuẩn hóa và mở rộng từ ngữ đời thường (nhậu, khôn, kẹp 3, bằng lái...) sang thuật ngữ luật
+        expanded_query = QueryExpander.expand(query)
+        if expanded_query != query:
+            logger.info(f"Query được mở rộng: \"{query}\" -> \"{expanded_query}\"")
+
         # 1. Chạy tìm kiếm từ khóa BM25
-        bm25_results = self.bm25_engine.search(query, top_k=candidate_k)
+        bm25_results = self.bm25_engine.search(expanded_query, top_k=candidate_k)
 
         # 2. Chạy tìm kiếm ngữ nghĩa Semantic
-        semantic_results = self.vector_engine.search(query, top_k=candidate_k)
+        semantic_results = self.vector_engine.search(expanded_query, top_k=candidate_k)
 
         # 3. Tính điểm RRF Fusion
         # RRF_score(d) = sum( weight / (k + rank_i(d)) )
