@@ -20,7 +20,9 @@ class Settings(BaseSettings):
     OPENROUTER_APP_NAME: str = "VN Legal RAG Assistant"
 
     # Qdrant Vector DB
-    QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_URL: str = ""
+    QDRANT_API_KEY: str = ""
+    QDRANT_PATH: str = str(BASE_DIR / "data" / "indexes" / "qdrant_db")
     QDRANT_COLLECTION: str = "law_chunks"
 
     # Embedding & Retrieval
