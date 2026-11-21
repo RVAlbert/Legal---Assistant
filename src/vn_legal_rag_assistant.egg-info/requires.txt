@@ -1,0 +1,15 @@
+fastapi<1.0,>=0.115
+uvicorn[standard]<1.0,>=0.30
+streamlit<2.0,>=1.40
+pydantic-settings<3.0,>=2.6
+python-docx<2.0,>=1.1
+qdrant-client<2.0,>=1.12
+rank-bm25<1.0,>=0.2
+sentence-transformers<6.0,>=3.3
+openai<3.0,>=1.50
+httpx<1.0,>=0.27
+
+[dev]
+pytest<9.0,>=8.3
+pytest-asyncio<1.0,>=0.24
+ruff<1.0,>=0.8

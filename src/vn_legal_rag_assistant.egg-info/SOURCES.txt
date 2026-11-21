@@ -1,0 +1,6 @@
+pyproject.toml
+src/vn_legal_rag_assistant.egg-info/PKG-INFO
+src/vn_legal_rag_assistant.egg-info/SOURCES.txt
+src/vn_legal_rag_assistant.egg-info/dependency_links.txt
+src/vn_legal_rag_assistant.egg-info/requires.txt
+src/vn_legal_rag_assistant.egg-info/top_level.txt
