@@ -46,7 +46,7 @@ class OpenRouterLLMClient:
         temperature: float = 0.2,
         max_tokens: int = 1500,
     ) -> str:
-        """Gửi prompt và nhận câu trả lời từ LLM."""
+        """Gửi prompt và nhận câu trả lời từ LLM với cơ chế bắt lỗi thân thiện."""
         try:
             logger.info(f"Gửi request tới OpenRouter Model: {self.model}")
             response = self.client.chat.completions.create(
@@ -58,5 +58,12 @@ class OpenRouterLLMClient:
             content = response.choices[0].message.content or ""
             return content.strip()
         except Exception as e:
-            logger.error(f"Lỗi khi gọi OpenRouter API: {e}")
-            raise
+            err_str = str(e)
+            logger.error(f"Lỗi khi gọi OpenRouter API: {err_str}")
+            if "429" in err_str or "Rate limit" in err_str:
+                return (
+                    "⚠️ Dịch vụ mô hình ngôn ngữ OpenRouter tạm thời đạt giới hạn số lượt gọi miễn phí trong ngày "
+                    "(Rate limit exceeded: 50 requests/day trên tài khoản Free). "
+                    "Các tầng tìm kiếm pháp lý (BM25 + Qdrant Vector) vẫn hoạt động bình thường bên dưới."
+                )
+            return f"⚠️ Dịch vụ mô hình ngôn ngữ gặp sự cố tạm thời: {err_str}"

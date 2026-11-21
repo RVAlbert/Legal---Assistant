@@ -20,6 +20,10 @@ from src.retrieval.models import SearchResult
 
 logger = get_logger("vector_search")
 
+# Cache singleton cho QdrantClient và Embedding Model để tránh lock file và tiết kiệm RAM
+_CLIENT_CACHE = {}
+_MODEL_CACHE = {}
+
 
 class VectorSearchEngine:
     """Bộ tìm kiếm ngữ nghĩa (Semantic Search) sử dụng BAAI/bge-m3 và Qdrant."""
@@ -35,8 +39,13 @@ class VectorSearchEngine:
 
         # Xác định thiết bị tính toán: cuda nếu có, ngược lại cpu
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info(f"Khởi tạo Embedding Model: {self.model_name} trên {self.device.upper()}")
-        self.embedder = SentenceTransformer(self.model_name, device=self.device)
+        
+        # Tái sử dụng model đã nạp
+        model_key = f"{self.model_name}_{self.device}"
+        if model_key not in _MODEL_CACHE:
+            logger.info(f"Khởi tạo Embedding Model: {self.model_name} trên {self.device.upper()}")
+            _MODEL_CACHE[model_key] = SentenceTransformer(self.model_name, device=self.device)
+        self.embedder = _MODEL_CACHE[model_key]
 
         # Khởi tạo Qdrant Client (ưu tiên Local on-disk persistent path)
         if qdrant_client:
@@ -48,10 +57,14 @@ class VectorSearchEngine:
                 api_key=settings.QDRANT_API_KEY or None,
             )
         else:
-            qdrant_path = Path(settings.QDRANT_PATH)
-            qdrant_path.parent.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Sử dụng Qdrant storage cục bộ tại: {qdrant_path}")
-            self.client = QdrantClient(path=str(qdrant_path))
+            qdrant_path_str = str(Path(settings.QDRANT_PATH).resolve())
+            if qdrant_path_str in _CLIENT_CACHE:
+                self.client = _CLIENT_CACHE[qdrant_path_str]
+            else:
+                Path(qdrant_path_str).parent.mkdir(parents=True, exist_ok=True)
+                logger.info(f"Sử dụng Qdrant storage cục bộ tại: {qdrant_path_str}")
+                self.client = QdrantClient(path=qdrant_path_str)
+                _CLIENT_CACHE[qdrant_path_str] = self.client
 
     def create_collection(self, recreate: bool = False):
         """Tạo collection cho Qdrant với vector size tương ứng (bge-m3 = 1024)."""

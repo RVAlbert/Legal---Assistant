@@ -1,0 +1,202 @@
+[
+  {
+    "id": "TC-01",
+    "group": "keyword",
+    "question": "Điều 1 Luật Trật tự an toàn giao thông đường bộ quy định về những gì?",
+    "expected_article": 1,
+    "expected_scope": "answered",
+    "must_include": ["Phạm vi điều chỉnh", "quy tắc", "phương tiện"]
+  },
+  {
+    "id": "TC-02",
+    "group": "keyword",
+    "question": "Điều 10 quy định về quy tắc chung khi tham gia giao thông đường bộ như thế nào?",
+    "expected_article": 10,
+    "expected_scope": "answered",
+    "must_include": ["bên phải", "làn đường", "dây đai an toàn"]
+  },
+  {
+    "id": "TC-03",
+    "group": "keyword",
+    "question": "Điều 30 quy định về người đi bộ tham gia giao thông đường bộ như thế nào?",
+    "expected_article": 30,
+    "expected_scope": "answered",
+    "must_include": ["người đi bộ", "vỉa hè", "qua đường"]
+  },
+  {
+    "id": "TC-04",
+    "group": "keyword",
+    "question": "Điều 25 quy định về quy tắc giao thông trên đường cao tốc ra sao?",
+    "expected_article": 25,
+    "expected_scope": "answered",
+    "must_include": ["đường cao tốc", "làn dừng xe khẩn cấp"]
+  },
+  {
+    "id": "TC-05",
+    "group": "keyword",
+    "question": "Điều 58 quy định gì về điểm của giấy phép lái xe?",
+    "expected_article": 58,
+    "expected_scope": "answered",
+    "must_include": ["12 điểm", "trừ điểm", "phục hồi"]
+  },
+  {
+    "id": "TC-06",
+    "group": "keyword",
+    "question": "Điều 88 quy định về hiệu lực thi hành của Luật này là khi nào?",
+    "expected_article": 88,
+    "expected_scope": "answered",
+    "must_include": ["01 tháng 01 năm 2025", "hiệu lực"]
+  },
+  {
+    "id": "TC-07",
+    "group": "situational",
+    "question": "Uống ít bia mà trong hơi thở vẫn có cồn thì có được lái xe không?",
+    "expected_article": 9,
+    "expected_scope": "answered",
+    "must_include": ["nồng độ cồn", "nghiêm cấm"]
+  },
+  {
+    "id": "TC-08",
+    "group": "situational",
+    "question": "Trẻ em ngồi ghế phụ phía trước ô tô thì cần đáp ứng điều kiện gì?",
+    "expected_article": 10,
+    "expected_scope": "answered",
+    "must_include": ["dưới 10 tuổi", "1,35 mét"]
+  },
+  {
+    "id": "TC-09",
+    "group": "situational",
+    "question": "Khi gặp xe cứu thương đang phát tín hiệu ưu tiên thì người lái xe phải làm gì?",
+    "expected_article": 27,
+    "expected_scope": "answered",
+    "must_include": ["nhường đường", "ưu tiên"]
+  },
+  {
+    "id": "TC-10",
+    "group": "situational",
+    "question": "Xe mô tô hai bánh có được đi vào đường cao tốc không?",
+    "expected_article": 25,
+    "expected_scope": "answered",
+    "must_include": ["cao tốc", "mô tô"]
+  },
+  {
+    "id": "TC-11",
+    "group": "situational",
+    "question": "Đang lái xe ô tô có được dùng tay sử dụng điện thoại di động không?",
+    "expected_article": 9,
+    "expected_scope": "answered",
+    "must_include": ["điện thoại", "nghiêm cấm"]
+  },
+  {
+    "id": "TC-12",
+    "group": "situational",
+    "question": "Khi qua vòng xuyến người lái xe phải nhường đường như thế nào?",
+    "expected_article": 22,
+    "expected_scope": "answered",
+    "must_include": ["vòng xuyến", "bên trái"]
+  },
+  {
+    "id": "TC-13",
+    "group": "situational",
+    "question": "Người lái xe mô tô, xe gắn máy có bắt buộc phải đội mũ bảo hiểm không?",
+    "expected_article": 33,
+    "expected_scope": "answered",
+    "must_include": ["mũ bảo hiểm"]
+  },
+  {
+    "id": "TC-14",
+    "group": "situational",
+    "question": "Gặp tai nạn giao thông trên đường thì người có mặt tại hiện trường có trách nhiệm gì?",
+    "expected_article": 80,
+    "expected_scope": "answered",
+    "must_include": ["cứu giúp", "bảo vệ hiện trường", "báo cho cơ quan"]
+  },
+  {
+    "id": "TC-15",
+    "group": "conditional_crossref",
+    "question": "Xe máy được chở mấy người và những trường hợp nào được chở tối đa 2 người?",
+    "expected_article": 33,
+    "expected_scope": "answered",
+    "must_include": ["chở một người", "trẻ em dưới 12 tuổi", "áp giải"]
+  },
+  {
+    "id": "TC-16",
+    "group": "conditional_crossref",
+    "question": "Bằng lái xe hạng A1 theo luật mới 2024 được điều khiển những loại xe gì?",
+    "expected_article": 57,
+    "expected_scope": "answered",
+    "must_include": ["hạng A1", "125 cm3"]
+  },
+  {
+    "id": "TC-17",
+    "group": "conditional_crossref",
+    "question": "Bằng lái hạng B theo luật mới 2024 quy định cho người lái loại xe nào?",
+    "expected_article": 57,
+    "expected_scope": "answered",
+    "must_include": ["hạng B", "đến 08 chỗ", "3.500 kg"]
+  },
+  {
+    "id": "TC-18",
+    "group": "conditional_crossref",
+    "question": "Giấy phép lái xe bị trừ hết điểm thì sau bao lâu và làm cách nào để được phục hồi 12 điểm?",
+    "expected_article": 58,
+    "expected_scope": "answered",
+    "must_include": ["ít nhất 06 tháng", "kiểm tra kiến thức", "phục hồi"]
+  },
+  {
+    "id": "TC-19",
+    "group": "conditional_crossref",
+    "question": "Quy định chuyển tiếp đối với giấy phép lái xe đã cấp trước ngày Luật có hiệu lực như thế nào?",
+    "expected_article": 89,
+    "expected_scope": "answered",
+    "must_include": ["chuyển tiếp", "đổi", "tiếp tục sử dụng"]
+  },
+  {
+    "id": "TC-20",
+    "group": "conditional_crossref",
+    "question": "Cơ quan nào có trách nhiệm quản lý nhà nước về sức khỏe của người lái xe và nồng độ cồn nội sinh?",
+    "expected_article": 87,
+    "expected_scope": "answered",
+    "must_include": ["Bộ Y tế", "nồng độ cồn nội sinh"]
+  },
+  {
+    "id": "TC-21",
+    "group": "out_of_scope_insufficient",
+    "question": "Vượt đèn đỏ bằng ô tô bị phạt bao nhiêu tiền?",
+    "expected_article": 11,
+    "expected_scope": "insufficient_data",
+    "must_include": ["Nghị định", "chưa có dữ liệu"]
+  },
+  {
+    "id": "TC-22",
+    "group": "out_of_scope_insufficient",
+    "question": "Chạy quá tốc độ 20km/h trên đường cao tốc bị phạt mấy triệu tiền mặt?",
+    "expected_article": null,
+    "expected_scope": "insufficient_data",
+    "must_include": ["Nghị định", "chưa có dữ liệu"]
+  },
+  {
+    "id": "TC-23",
+    "group": "out_of_scope_insufficient",
+    "question": "Thời gian thử việc tối đa theo Luật Lao động là bao nhiêu tháng?",
+    "expected_article": null,
+    "expected_scope": "out_of_scope",
+    "must_include": ["Luật Lao động"]
+  },
+  {
+    "id": "TC-24",
+    "group": "out_of_scope_insufficient",
+    "question": "Biểu thuế lũy tiến từng phần thuế thu nhập cá nhân năm 2026 quy định như thế nào?",
+    "expected_article": null,
+    "expected_scope": "out_of_scope",
+    "must_include": ["thuế"]
+  },
+  {
+    "id": "TC-25",
+    "group": "out_of_scope_insufficient",
+    "question": "Hãy viết giúp tôi một bài thơ ngắn về mùa thu.",
+    "expected_article": null,
+    "expected_scope": "out_of_scope",
+    "must_include": []
+  }
+]

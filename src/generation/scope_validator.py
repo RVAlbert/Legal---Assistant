@@ -19,8 +19,8 @@ class ScopeValidator:
         "thuế thu nhập", "thuế tncn", "luật thuế", "quyết toán thuế",
         "bộ luật dân sự", "luật dân sự", "thừa kế", "ly hôn", "kết hôn",
         "bộ luật hình sự", "luật hình sự", "tội phạm",
-        "lập trình", "python", "javascript", "viết code", "viết thơ",
-        "dịch tiếng anh", "thời tiết hôm nay",
+        "lập trình", "python", "javascript", "viết code", "viết thơ", "bài thơ", "thơ ", "thơ ngắn",
+        "dịch tiếng anh", "thời tiết hôm nay", "kể chuyện", "viết văn",
     ]
 
     # Danh sách từ khóa hỏi mức tiền phạt cụ thể
