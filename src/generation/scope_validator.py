@@ -28,7 +28,20 @@ class ScopeValidator:
         "phạt bao nhiêu tiền", "phạt bao nhiêu", "tiền phạt", "mức phạt tiền",
         "mức phạt bao nhiêu", "bị phạt mấy triệu", "phạt mấy trăm", "phạt bao tiền",
         "mức phạt cụ thể", "nghị định 100", "nghị định 123", "nghị định 168",
+        # Biến thể tiếng lóng / viết tắt
+        "phạt bao nhiu", "bao nhiu tiền", "bị phạt bao nhiu", "bị phạt bao nhiêu",
+        "phạt mấy tiền", "phạt mấy đồng", "bị phạt bao tiền", "phạt mấy củ",
+        "phạt bao nhiêu triệu", "mức tiền phạt", "tiền bị phạt", "phạt bn",
+        "bao nhiêu củ", "mấy củ", "mấy triệu",
     ]
+
+    # Pattern regex kiểm tra ý định hỏi mức tiền phạt
+    FINE_PATTERN = re.compile(
+        r"(phạt|tước bằng|giam xe).*?(bao nhiêu|bao nhiu|bn|mấy|tiền|triệu|tr|củ)|"
+        r"(bao nhiêu|bao nhiu|bn|mấy).*?(tiền|triệu|tr|củ)|"
+        r"mức phạt|tiền phạt",
+        re.IGNORECASE,
+    )
 
     def assess_pre_retrieval(self, query: str) -> Optional[ScopeAssessment]:
         """Kiểm tra nhanh trước khi tìm kiếm (từ khóa cấm, rỗng hoặc quá ngắn)."""
@@ -60,17 +73,17 @@ class ScopeValidator:
         clean_q = query.strip().lower()
 
         # Kiểm tra nếu hỏi mức phạt tiền
-        for kw in self.FINE_KEYWORDS:
-            if kw in clean_q:
-                return ScopeAssessment(
-                    status=ScopeStatus.INSUFFICIENT_DATA,
-                    reason=(
-                        "Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15 quy định về quy tắc và hành vi, "
-                        "nhưng mức tiền phạt cụ thể được quy định tại Nghị định của Chính phủ về xử phạt vi phạm hành chính "
-                        "(văn bản này chưa có trong dữ liệu hiện tại)."
-                    ),
-                    missing_scope="Nghị định xử phạt vi phạm hành chính",
-                )
+        is_fine_query = any(kw in clean_q for kw in self.FINE_KEYWORDS) or bool(self.FINE_PATTERN.search(clean_q))
+        if is_fine_query:
+            return ScopeAssessment(
+                status=ScopeStatus.INSUFFICIENT_DATA,
+                reason=(
+                    "Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15 quy định về quy tắc và hành vi bị cấm, "
+                    "nhưng mức tiền phạt cụ thể được quy định tại Nghị định của Chính phủ về xử phạt vi phạm hành chính "
+                    "(văn bản này chưa có trong dữ liệu hiện tại)."
+                ),
+                missing_scope="Nghị định xử phạt vi phạm hành chính",
+            )
 
         # Nếu không có kết quả tìm kiếm nào hoặc điểm RRF quá thấp
         if not retrieval_results or retrieval_results[0].score < 0.015:

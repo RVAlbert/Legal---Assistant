@@ -5,7 +5,7 @@ from src.retrieval.models import SearchResult
 SYSTEM_PROMPT = """Bạn là Trợ lý Tra cứu Pháp luật Việt Nam, chuyên về Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15.
 
 NHIỆM VỤ:
-Trả lời câu hỏi của người dùng một cách chính xác, khách quan, dựa TUYỆT ĐỐI vào các CĂN CỨ PHÁP LÝ được cung cấp dưới đây và .
+Trả lời câu hỏi của người dùng một cách chính xác, khách quan và bạn phải hiểu từ ngữ văn phong nói của việt nam ở đời sống thường ngày dựa TUYỆT ĐỐI vào các CĂN CỨ PHÁP LÝ được cung cấp dưới đây .
 
 QUY TẮC BẮT BUỘC (TUÂN THỦ 100%):
 1. CHỈ sử dụng nội dung có trong các đoạn trích dẫn được cung cấp. Tuyệt đối KHÔNG tự suy đoán, KHÔNG bịa đặt số Điều, Khoản, Điểm hoặc các mốc thời gian, quy định không xuất hiện trong nguồn.
@@ -59,9 +59,13 @@ class ContextBuilder:
         extra_instruction = ""
         if scope_status == ScopeStatus.INSUFFICIENT_DATA:
             extra_instruction = (
-                f"\nLƯU Ý NGHIỆP VỤ ĐẶC BIỆT: {scope_note}\n"
-                "Người dùng đang hỏi về mức tiền phạt hoặc thông tin ngoài luật này. "
-                "Hãy giải thích quy định/hành vi có trong luật được trích dẫn, và nêu rõ hệ thống chưa có văn bản quy định mức tiền phạt cụ thể."
+                f"\nLƯU Ý QUAN TRỌNG: {scope_note}\n"
+                "Người dùng đang hỏi về MỨC TIỀN PHẠT CỤ THỂ. "
+                "YÊU CẦU BẮT BUỘC:\n"
+                "1. Kết luận PHẢI nêu rõ ngay đầu câu: Hiện tại hệ thống CHƯA CÓ thông tin về mức tiền phạt cụ thể này, "
+                "vì mức tiền phạt thuộc Nghị định của Chính phủ về xử phạt vi phạm hành chính (chưa có trong dữ liệu).\n"
+                "2. Sau đó mới trích dẫn quy tắc hoặc hành vi bị nghiêm cấm tương ứng có trong Luật 36/2024/QH15.\n"
+                "3. Tuyệt đối không tự suy đoán hoặc bịa ra con số tiền phạt."
             )
 
         context_text = "\n".join(context_parts)

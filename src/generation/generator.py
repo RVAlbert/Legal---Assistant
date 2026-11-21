@@ -129,6 +129,34 @@ class LegalRAGAssistant:
         if not sources:
             return "Không tìm thấy căn cứ pháp lý phù hợp trong Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15."
 
+        # ✅ Nếu scope_status == INSUFFICIENT_DATA (hỏi tiền phạt cụ thể),
+        # Báo ngay "chưa có thông tin mức phạt" và dẫn giải điều luật cấm liên quan (nếu có)
+        if scope_status == ScopeStatus.INSUFFICIENT_DATA:
+            ans_lines = [
+                "**⚠️ Hiện tại hệ thống chưa có thông tin về mức tiền phạt cụ thể này trong cơ sở dữ liệu.**\n",
+                "**Giải thích chi tiết:**",
+                "- Cơ sở dữ liệu hiện tại của hệ thống chỉ bao gồm **Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15**.",
+                "- Văn bản luật này chỉ quy định về **quy tắc giao thông và các hành vi bị nghiêm cấm**, chứ **không quy định mức tiền phạt cụ thể** bằng tiền (đồng/triệu đồng).",
+            ]
+            if sources:
+                top_src = sources[0]
+                cl_txt = f", khoản {top_src.clause_number}" if top_src.clause_number else ""
+                pt_txt = f", điểm {top_src.point}" if top_src.point else ""
+                ans_lines.append(
+                    f"\n**Quy định liên quan trong Luật 36/2024/QH15:** [Điều {top_src.article_number}{cl_txt}{pt_txt}] - {top_src.article_title}:\n"
+                    f"> *\"{top_src.raw_content}\"*"
+                )
+            ans_lines.append(
+                "\n**Văn bản quy định mức tiền phạt:** Mức tiền phạt cụ thể được quy định tại "
+                "**Nghị định của Chính phủ về xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ** "
+                "(văn bản này hiện chưa được tích hợp vào hệ thống)."
+            )
+            ans_lines.append(
+                "\n*(Lưu ý: Do dịch vụ mô hình ngôn ngữ OpenRouter tạm thời đạt giới hạn lượt gọi miễn phí trong ngày, "
+                "hệ thống tự động tra cứu và đối chiếu trực tiếp từ cơ sở dữ liệu Luật 36/2024/QH15)*"
+            )
+            return "\n".join(ans_lines)
+
         top_source = sources[0]
         art_num = top_source.article_number
         cl_num = top_source.clause_number
