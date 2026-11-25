@@ -45,14 +45,13 @@ def test_pipeline_e2e_out_of_scope_query(rag_assistant):
     assert "chưa có dữ liệu" in resp.answer or "hỗ trợ tra cứu" in resp.answer
 
 
-def test_pipeline_e2e_insufficient_data_query(rag_assistant):
-    """Kiểm thử e2e với câu hỏi về mức tiền phạt."""
-    query = "Vượt đèn đỏ bị phạt bao nhiêu tiền?"
+def test_pipeline_e2e_fine_query_decree_168(rag_assistant):
+    """Kiểm thử e2e với câu hỏi về mức tiền phạt theo Nghị định 168/2024/NĐ-CP."""
+    query = "Vượt đèn đỏ bằng ô tô bị phạt bao nhiêu tiền?"
     resp = rag_assistant.answer_question(query)
 
-    assert resp.scope_status == ScopeStatus.INSUFFICIENT_DATA
-    # Phải tìm ra Điều 11 hoặc các điều liên quan đèn giao thông
+    assert resp.scope_status == ScopeStatus.ANSWERED
     assert len(resp.sources) > 0
-
-    if "Rate limit" not in resp.answer:
-        assert "Nghị định" in resp.answer or "chưa có" in resp.answer
+    # Phải truy xuất được dữ liệu từ Nghị định 168/2024/NĐ-CP
+    assert any("168" in (s.law_number or "") for s in resp.sources)
+    assert "đồng" in resp.answer.lower() or "168" in resp.answer

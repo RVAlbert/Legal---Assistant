@@ -19,6 +19,15 @@ COLLOQUIAL_SEMANTIC_MAPPINGS: List[Tuple[str, str]] = [
         r"\b(nhậu|nhậu nhẹt|uống rượu|uống bia|say xỉn|say rượu|uống cồn|có cồn|có men|uống 1 giọt|uống một ít bia|uống một ít rượu|làm vài lon|làm cốc bia|uống chén|cụng ly)\b",
         "nồng độ cồn trong máu hoặc hơi thở rượu bia hành vi bị nghiêm cấm",
     ),
+    # Hỏi mức phạt tiền / xe máy
+    (
+        r"\b(phạt bao nhiêu|phạt bao nhiu|bị phạt|mức phạt|tiền phạt|phạt mấy triệu|bao nhiu tiền|bao nhiêu tiền)\b",
+        "phạt tiền từ đồng đến đồng trừ điểm giấy phép lái xe 168/2024/NĐ-CP",
+    ),
+    (
+        r"\b(xe máy|xe gắn máy)\b",
+        "xe mô tô xe gắn máy",
+    ),
     # Đèn tín hiệu giao thông
     (
         r"\b(vượt đèn đỏ|vượt đèn vàng|vượt đèn|đèn đỏ|đèn vàng)\b",

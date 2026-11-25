@@ -110,18 +110,20 @@ class ScopeValidator:
         """Kiểm tra sau khi tìm kiếm kết hợp kết quả truy xuất."""
         clean_q = query.strip().lower()
 
-        # Kiểm tra nếu hỏi mức phạt tiền
+        # Kiểm tra nếu hỏi mức phạt tiền:
+        # Nếu đã truy xuất được dữ liệu từ Nghị định 168/2024/NĐ-CP -> ANSWERED!
+        # Chỉ báo INSUFFICIENT_DATA nếu hệ thống chưa có kết quả từ Nghị định xử phạt.
         is_fine_query = any(kw in clean_q for kw in self.FINE_KEYWORDS) or bool(self.FINE_PATTERN.search(clean_q))
         if is_fine_query:
-            return ScopeAssessment(
-                status=ScopeStatus.INSUFFICIENT_DATA,
-                reason=(
-                    "Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15 quy định về quy tắc và hành vi bị cấm, "
-                    "nhưng mức tiền phạt cụ thể được quy định tại Nghị định của Chính phủ về xử phạt vi phạm hành chính "
-                    "(văn bản này chưa có trong dữ liệu hiện tại)."
-                ),
-                missing_scope="Nghị định xử phạt vi phạm hành chính",
-            )
+            has_decree_source = any("168" in (r.law_number or "") for r in retrieval_results)
+            if not has_decree_source:
+                return ScopeAssessment(
+                    status=ScopeStatus.INSUFFICIENT_DATA,
+                    reason=(
+                        "Chưa tìm thấy mức tiền phạt cụ thể tương ứng trong Nghị định xử phạt vi phạm hành chính."
+                    ),
+                    missing_scope="Nghị định xử phạt vi phạm hành chính",
+                )
 
         # Nếu không có kết quả tìm kiếm nào hoặc điểm RRF quá thấp
         if not retrieval_results or retrieval_results[0].score < 0.015:

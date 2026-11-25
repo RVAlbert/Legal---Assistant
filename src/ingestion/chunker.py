@@ -37,8 +37,14 @@ class StructureAwareChunker:
     ) -> List[LawChunk]:
         chunks: List[LawChunk] = []
 
+        id_prefix = (
+            "giao_thong_36_2024"
+            if "36_2024" in law_doc.document_id
+            else law_doc.document_id
+        )
+
         header_prefix = (
-            f"[{law_doc.law_name}]\n"
+            f"[{law_doc.law_name} ({law_doc.law_number})]\n"
             f"Chương {chapter.chapter_number}. {chapter.chapter_title}\n"
             f"Điều {article.article_number}. {article.article_title}\n"
         )
@@ -49,7 +55,7 @@ class StructureAwareChunker:
         if total_art_len <= self.max_article_chars or len(article.clauses) <= 1:
             raw_text = article.text
             full_text = header_prefix + raw_text
-            chunk_id = f"giao_thong_36_2024_dieu_{article.article_number}"
+            chunk_id = f"{id_prefix}_dieu_{article.article_number}"
             refs = extract_cross_references(raw_text, current_article=article.article_number)
 
             clause_num = article.clauses[0].clause_number if article.clauses else None
@@ -86,7 +92,7 @@ class StructureAwareChunker:
             # Nếu Khoản không quá dài, giữ trọn Khoản
             if len(raw_clause_content) <= self.max_clause_chars or not clause.points:
                 clause_suffix = f"_khoan_{clause.clause_number}" if clause.clause_number is not None else ""
-                chunk_id = f"giao_thong_36_2024_dieu_{article.article_number}{clause_suffix}"
+                chunk_id = f"{id_prefix}_dieu_{article.article_number}{clause_suffix}"
                 full_text = header_prefix + raw_clause_content
                 refs = extract_cross_references(raw_clause_content, current_article=article.article_number)
 
@@ -112,7 +118,7 @@ class StructureAwareChunker:
                 for pt in clause.points:
                     point_content = f"{cl_prefix}{cl_body}\n{pt.point}) {pt.text}"
                     full_text = header_prefix + point_content
-                    chunk_id = f"giao_thong_36_2024_dieu_{article.article_number}_khoan_{clause.clause_number}_diem_{pt.point}"
+                    chunk_id = f"{id_prefix}_dieu_{article.article_number}_khoan_{clause.clause_number}_diem_{pt.point}"
                     refs = extract_cross_references(point_content, current_article=article.article_number)
 
                     chunks.append(
@@ -128,7 +134,7 @@ class StructureAwareChunker:
                             clause_number=clause.clause_number,
                             point=pt.point,
                             text=full_text,
-                            raw_content=f"{pt.point}) {pt.text}",
+                            raw_content=f"{cl_prefix}{cl_body}\n{pt.point}) {pt.text}",
                             references=refs,
                         )
                     )

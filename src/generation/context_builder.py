@@ -1,25 +1,27 @@
+from pathlib import Path
 from typing import List
 from src.generation.models import ScopeStatus
 from src.retrieval.models import SearchResult
 
-SYSTEM_PROMPT = """Bạn là Trợ lý Tra cứu Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15.
+SKILL_FILE = Path(__file__).resolve().parent / "skills" / "concise_legal_answer.md"
 
-PHONG CÁCH TRẢ LỜI (BẮT BUỘC):
-- **NGẮN GỌN, ĐÚNG TRỌNG TÂM, KHÔNG VÒNG VO** (tối đa khoảng 3–5 câu hoặc 2–4 gạch đầu dòng ngắn).
-- **Nói thẳng kết luận + Điều mấy, khoản mấy ngay lập tức** theo định dạng `[Điều X, khoản Y]`.
 
-QUY TẮC XỬ LÝ TÌNH HUỐNG:
-1. **Hiểu đúng ngữ cảnh người dùng:** Phân biệt rõ vai trò (người lái xe vs người ngồi sau/được chở, đang chạy vs đã dừng xe...), hiểu văn phong đời thường (nhậu, kẹp 3...). Không bắt từ khóa máy móc.
-2. **Câu hỏi có trong Luật 36/2024/QH15:**
-   - **Kết luận:** Trả lời thẳng (Được / Không được / Quy định chính) kèm `[Điều X, khoản Y]`.
-   - **Giải thích ngắn:** 1–2 ý cốt lõi nhất (hoặc lưu ý bắt buộc nếu có).
-3. **Câu hỏi hỏi mức tiền phạt hoặc nội dung KHÔNG có trong Luật 36/2024/QH15:**
-   - Nói thẳng ngay dòng đầu: *"Hiện tại hệ thống chưa có thông tin này trong Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15."*
-   - Giải thích 1 câu ngắn (ví dụ: mức tiền phạt cụ thể thuộc Nghị định của Chính phủ; kèm 1 dòng hành vi cấm liên quan `[Điều X, khoản Y]` nếu có).
-4. **Giao tiếp xã hội** (chào hỏi, hỏi thăm sức khỏe, lối sống): Trả lời thân thiện, ngắn gọn 1–2 câu.
-5. **Câu hỏi lạc đề, ghẹo chọc, châm biếm, không liên quan:** Trả lời đúng câu: *"Hiện tại mình chưa có kết quả bạn yêu cầu, xin thử lại."*
-6. Tuyệt đối không bịa đặt số Điều, Khoản hay mức tiền phạt không có trong nguồn.
-"""
+def _load_system_prompt() -> str:
+    """Đọc skill hướng dẫn trả lời ngắn gọn, đúng trọng tâm, chuẩn trích dẫn cho AI."""
+    base_header = (
+        "Bạn là Trợ lý Tra cứu Pháp luật Giao thông Việt Nam, sử dụng 2 văn bản chính thức:\n"
+        "1. Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15 (quy tắc giao thông, hành vi cấm, GPLX).\n"
+        "2. Nghị định số 168/2024/NĐ-CP (mức phạt tiền cụ thể, trừ điểm và phục hồi điểm GPLX).\n\n"
+    )
+    if SKILL_FILE.exists():
+        return base_header + SKILL_FILE.read_text(encoding="utf-8").strip()
+    return (
+        base_header
+        + "Trả lời NGẮN GỌN (2–4 dòng), đúng trọng tâm, không lan man, bắt buộc ghi rõ [Tên văn bản, Điều X, khoản Y, điểm Z]."
+    )
+
+
+SYSTEM_PROMPT = _load_system_prompt()
 
 
 class ContextBuilder:
@@ -37,23 +39,25 @@ class ContextBuilder:
         context_parts = []
 
         # 1. Nguồn chính
-        context_parts.append("=== NGUỒN CĂN CỨ CHÍNH TỪ VĂN BẢN LUẬT ===")
+        context_parts.append("=== NGUỒN CĂN CỨ CHÍNH TỪ VĂN BẢN PHÁP LUẬT ===")
         for i, src in enumerate(primary_sources, start=1):
             cl_info = f", Khoản {src.clause_number}" if src.clause_number else ""
             pt_info = f", Điểm {src.point}" if src.point else ""
+            doc_tag = "Nghị định 168/2024/NĐ-CP" if "168" in src.law_number else f"Luật {src.law_number}"
             context_parts.append(
-                f"[Nguồn {i}: Điều {src.article_number}{cl_info}{pt_info} - {src.article_title}]\n"
+                f"[Nguồn {i}: {doc_tag} - Điều {src.article_number}{cl_info}{pt_info} - {src.article_title}]\n"
                 f"{src.text}\n"
             )
 
         # 2. Nguồn tham chiếu bổ sung (nếu có)
         if expansion_sources:
-            context_parts.append("\n=== NGUỒN THAM CHIẾU DẪN CHIẾU BỔ SUNG ===")
+            context_parts.append("\n=== NGUỒN THAM CHIẾU BỔ SUNG ===")
             for j, ref in enumerate(expansion_sources, start=1):
                 cl_info = f", Khoản {ref.clause_number}" if ref.clause_number else ""
                 pt_info = f", Điểm {ref.point}" if ref.point else ""
+                doc_tag = "Nghị định 168/2024/NĐ-CP" if "168" in ref.law_number else f"Luật {ref.law_number}"
                 context_parts.append(
-                    f"[Nguồn tham chiếu {j}: Điều {ref.article_number}{cl_info}{pt_info} - {ref.article_title}]\n"
+                    f"[Nguồn tham chiếu {j}: {doc_tag} - Điều {ref.article_number}{cl_info}{pt_info} - {ref.article_title}]\n"
                     f"{ref.text}\n"
                 )
 
@@ -61,13 +65,8 @@ class ContextBuilder:
         extra_instruction = ""
         if scope_status == ScopeStatus.INSUFFICIENT_DATA:
             extra_instruction = (
-                f"\nLƯU Ý QUAN TRỌNG: {scope_note}\n"
-                "Người dùng đang hỏi về MỨC TIỀN PHẠT CỤ THỂ. "
-                "YÊU CẦU BẮT BUỘC:\n"
-                "1. Kết luận PHẢI nêu rõ ngay đầu câu: Hiện tại hệ thống CHƯA CÓ thông tin về mức tiền phạt cụ thể này, "
-                "vì mức tiền phạt thuộc Nghị định của Chính phủ về xử phạt vi phạm hành chính (chưa có trong dữ liệu).\n"
-                "2. Sau đó mới trích dẫn quy tắc hoặc hành vi bị nghiêm cấm tương ứng có trong Luật 36/2024/QH15.\n"
-                "3. Tuyệt đối không tự suy đoán hoặc bịa ra con số tiền phạt."
+                f"\nLƯU Ý: {scope_note}\n"
+                "Nếu nguồn trên không có mức tiền phạt cụ thể cho hành vi được hỏi, hãy nói ngắn gọn rằng hệ thống chưa tìm thấy mức phạt chi tiết này."
             )
 
         context_text = "\n".join(context_parts)
@@ -75,11 +74,11 @@ class ContextBuilder:
         user_content = (
             f"CĂN CỨ PHÁP LÝ:\n{context_text}\n"
             f"{extra_instruction}\n"
-            f"CÂU HỎI CỦA NGƯỜI DÙNG: {query}\n\n"
-            "Hãy trả lời câu hỏi dựa trên Căn cứ pháp lý ở trên theo đúng các quy tắc bắt buộc."
+            f"CÂU HỎI: {query}\n\n"
+            "Trả lời NGẮN GỌN, ĐÚNG TRỌNG TÂM (tiết kiệm token), ghi rõ văn bản + Điều, khoản, điểm."
         )
 
         return [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": _load_system_prompt()},
             {"role": "user", "content": user_content},
         ]

@@ -24,9 +24,9 @@ class CitationValidator:
         valid_articles: Set[int] = set(s.article_number for s in available_sources)
 
         # Regex tìm các mẫu trích dẫn trong câu trả lời
-        # Ví dụ: [Điều 58, khoản 1], [Luật ..., Điều 9, khoản 2], Điều 9
+        # Ví dụ: [Điều 58, khoản 1], [Luật ..., Điều 9, khoản 2], [Nghị định 168/2024/NĐ-CP, Điều 7, khoản 6, điểm b]
         citation_pattern = re.compile(
-            r"\[?(?:Luật[^,]+,\s*)?Điều\s+(\d+)(?:,\s*khoản\s+(\d+))?(?:,\s*điểm\s+([a-zđ]))?\]?",
+            r"\[?(?:(?:Luật|Nghị định)[^,\]]+,\s*)?Điều\s+(\d+)(?:,\s*khoản\s+(\d+))?(?:,\s*điểm\s+([a-zđ]))?\]?",
             re.IGNORECASE,
         )
 

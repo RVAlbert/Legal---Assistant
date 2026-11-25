@@ -75,11 +75,11 @@ with st.sidebar:
     st.subheader("📚 Văn bản tra cứu")
     st.info(
         """
-        **Luật Trật tự, an toàn giao thông đường bộ**  
-        - **Số hiệu:** 36/2024/QH15  
-        - **Ban hành:** 27/06/2024  
-        - **Hiệu lực:** 01/01/2025  
-        - **Quy mô:** 9 Chương, 89 Điều
+        **1. Luật Trật tự, an toàn giao thông đường bộ**  
+        - **Số hiệu:** 36/2024/QH15 (9 Chương, 89 Điều)  
+        **2. Nghị định xử phạt hành chính & trừ điểm GPLX**  
+        - **Số hiệu:** 168/2024/NĐ-CP (4 Chương, 55 Điều)  
+        - **Hiệu lực:** 01/01/2025
         """
     )
 
@@ -90,14 +90,13 @@ with st.sidebar:
     st.write(f"- **Backend API:** {'🟢 Online (Port 8000)' if is_api_online else '🟠 Local Direct'}")
     st.write(f"- **LLM ({settings.LLM_PROVIDER.upper()}):** `{active_model}`")
     st.write(f"- **Embedding:** `{settings.EMBEDDING_MODEL}`")
-    st.write(f"- **Chỉ mục:** 500 chunks (BM25 + Qdrant)")
+    st.write(f"- **Chỉ mục:** 1,268 chunks (BM25 + Qdrant)")
 
     st.markdown("---")
     st.subheader("⚠️ Phạm vi & Giới hạn")
     st.warning(
         """
-        - Hệ thống **chỉ hỗ trợ** Luật 36/2024/QH15.  
-        - **Mức tiền phạt cụ thể** thuộc Nghị định xử phạt vi phạm hành chính (chưa bao gồm trong dữ liệu hiện tại).  
+        - Hệ thống hỗ trợ **Luật 36/2024/QH15** và **Nghị định 168/2024/NĐ-CP** (mức phạt tiền & trừ điểm GPLX).  
         - Không thay thế tư vấn pháp lý chính thức từ cơ quan nhà nước hoặc luật sư.
         """
     )
@@ -140,9 +139,9 @@ for msg in st.session_state.messages:
             # Badge trạng thái
             scope = m.get("scope_status")
             if scope == "answered":
-                st.success("✅ Đầy đủ căn cứ trong Luật 36/2024/QH15")
+                st.success("✅ Đầy đủ căn cứ pháp lý (Luật 36/2024/QH15 & NĐ 168/2024/NĐ-CP)")
             elif scope == "insufficient_data":
-                st.warning("⚠️ Đúng lĩnh vực nhưng thiếu dữ liệu mức tiền phạt (thuộc Nghị định)")
+                st.warning("⚠️ Thiếu dữ liệu chi tiết trong cơ sở dữ liệu hiện tại")
             elif scope == "out_of_scope":
                 st.error("🚫 Ngoài phạm vi văn bản hỗ trợ")
 
@@ -153,8 +152,9 @@ for msg in st.session_state.messages:
                     for s in sources:
                         cl_txt = f", Khoản {s.get('clause_number')}" if s.get('clause_number') else ""
                         pt_txt = f", Điểm {s.get('point')}" if s.get('point') else ""
+                        doc_label = s.get("law_number", "36/2024/QH15")
                         st.markdown(
-                            f"**Điều {s.get('article_number')}{cl_txt}{pt_txt} - {s.get('article_title')}** "
+                            f"**[{doc_label}] Điều {s.get('article_number')}{cl_txt}{pt_txt} - {s.get('article_title')}** "
                             f"*(Điểm RRF: {s.get('score', 0):.4f})*"
                         )
                         st.text(s.get("raw_content", ""))
@@ -194,9 +194,9 @@ if query_to_run:
 
             scope = res.get("scope_status")
             if scope == "answered":
-                st.success("✅ Đầy đủ căn cứ trong Luật 36/2024/QH15")
+                st.success("✅ Đầy đủ căn cứ pháp lý (Luật 36/2024/QH15 & NĐ 168/2024/NĐ-CP)")
             elif scope == "insufficient_data":
-                st.warning("⚠️ Đúng lĩnh vực nhưng thiếu dữ liệu mức tiền phạt (thuộc Nghị định)")
+                st.warning("⚠️ Thiếu dữ liệu chi tiết trong cơ sở dữ liệu hiện tại")
             elif scope == "out_of_scope":
                 st.error("🚫 Ngoài phạm vi văn bản hỗ trợ")
 
@@ -206,8 +206,9 @@ if query_to_run:
                     for s in sources:
                         cl_txt = f", Khoản {s.get('clause_number')}" if s.get('clause_number') else ""
                         pt_txt = f", Điểm {s.get('point')}" if s.get('point') else ""
+                        doc_label = s.get("law_number", "36/2024/QH15")
                         st.markdown(
-                            f"**Điều {s.get('article_number')}{cl_txt}{pt_txt} - {s.get('article_title')}** "
+                            f"**[{doc_label}] Điều {s.get('article_number')}{cl_txt}{pt_txt} - {s.get('article_title')}** "
                             f"*(Điểm RRF: {s.get('score', 0):.4f})*"
                         )
                         st.text(s.get("raw_content", ""))

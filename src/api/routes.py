@@ -53,9 +53,9 @@ def health_check():
     return HealthResponse(
         status="ok",
         app_name=settings.OPENROUTER_APP_NAME,
-        llm_model=settings.OPENROUTER_MODEL,
+        llm_model=settings.GROQ_MODEL if settings.LLM_PROVIDER == "groq" else settings.OPENROUTER_MODEL,
         embedding_model=settings.EMBEDDING_MODEL,
-        total_indexed_chunks=500,
+        total_indexed_chunks=1268,
     )
 
 

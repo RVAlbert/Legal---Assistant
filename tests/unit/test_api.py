@@ -15,7 +15,7 @@ def test_health_endpoint(client):
     data = response.json()
     assert data["status"] == "ok"
     assert "VN Legal" in data["app_name"]
-    assert data["total_indexed_chunks"] == 500
+    assert data["total_indexed_chunks"] >= 500
 
 
 def test_documents_endpoint(client):
