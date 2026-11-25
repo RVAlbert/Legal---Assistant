@@ -194,7 +194,7 @@ def _inject_legal_theme():
 
 
 @st.cache_resource(show_spinner=False)
-def load_standalone_assistant():
+def load_standalone_assistant(_version: str = "v2"):
     """Tải trợ lý pháp lý cục bộ; tự động khởi tạo chỉ mục BM25 nếu chạy trên Streamlit Cloud."""
     settings = get_settings()
     bm25_path = settings.INDEXES_DIR / "bm25_index.pkl"
@@ -258,8 +258,11 @@ def query_backend(prompt: str, chat_history: list | None = None) -> dict:
         except Exception:
             pass
 
-    assistant = load_standalone_assistant()
-    res = assistant.answer_question(prompt, chat_history=chat_history)
+    assistant = load_standalone_assistant("v2")
+    try:
+        res = assistant.answer_question(prompt, chat_history=chat_history)
+    except TypeError:
+        res = assistant.answer_question(prompt)
     return res.model_dump()
 
 

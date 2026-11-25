@@ -32,11 +32,14 @@ class OpenRouterLLMClient:
         self.site_url = settings.OPENROUTER_SITE_URL
         self.app_name = settings.OPENROUTER_APP_NAME
 
+        # Làm sạch API key (tránh khoảng trắng hoặc ký tự lỗi khi copy-paste vào Secrets)
+        self.api_key = (self.api_key or "").strip()
+
         default_headers = {}
-        if self.site_url:
-            default_headers["HTTP-Referer"] = self.site_url
-        if self.app_name:
-            default_headers["X-Title"] = self.app_name
+        if self.site_url and self.site_url.isascii():
+            default_headers["HTTP-Referer"] = self.site_url.strip()
+        if self.app_name and self.app_name.isascii():
+            default_headers["X-Title"] = self.app_name.strip()
 
         self.client = OpenAI(
             api_key=self.api_key,
