@@ -8,7 +8,7 @@ logger = get_logger("llm_client")
 
 
 class OpenRouterLLMClient:
-    """Client giao tiếp với OpenRouter API tương thích chuẩn OpenAI (Bước 14)."""
+    """Client giao tiếp với LLM API (hỗ trợ Groq tốc độ cao và OpenRouter dự phòng)."""
 
     def __init__(
         self,
@@ -17,16 +17,21 @@ class OpenRouterLLMClient:
         model: Optional[str] = None,
     ):
         settings = get_settings()
-        self.api_key = api_key or settings.OPENROUTER_API_KEY
-        self.base_url = base_url or settings.OPENROUTER_BASE_URL
-        self.model = model or settings.OPENROUTER_MODEL
+        self.provider = getattr(settings, "LLM_PROVIDER", "groq").lower()
+
+        # Cấu hình chính dựa trên provider
+        if self.provider == "groq" and (api_key or settings.GROQ_API_KEY):
+            self.api_key = api_key or settings.GROQ_API_KEY
+            self.base_url = base_url or settings.GROQ_BASE_URL
+            self.model = model or settings.GROQ_MODEL
+        else:
+            self.api_key = api_key or settings.OPENROUTER_API_KEY
+            self.base_url = base_url or settings.OPENROUTER_BASE_URL
+            self.model = model or settings.OPENROUTER_MODEL
+
         self.site_url = settings.OPENROUTER_SITE_URL
         self.app_name = settings.OPENROUTER_APP_NAME
 
-        if not self.api_key:
-            logger.warning("OPENROUTER_API_KEY chưa được thiết lập!")
-
-        # Các header tùy chọn cho OpenRouter
         default_headers = {}
         if self.site_url:
             default_headers["HTTP-Referer"] = self.site_url
@@ -48,7 +53,7 @@ class OpenRouterLLMClient:
     ) -> str:
         """Gửi prompt và nhận câu trả lời từ LLM với cơ chế bắt lỗi thân thiện."""
         try:
-            logger.info(f"Gửi request tới OpenRouter Model: {self.model}")
+            logger.info(f"Gửi request tới LLM ({self.provider} - Model: {self.model})")
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
@@ -59,11 +64,10 @@ class OpenRouterLLMClient:
             return content.strip()
         except Exception as e:
             err_str = str(e)
-            logger.error(f"Lỗi khi gọi OpenRouter API: {err_str}")
+            logger.error(f"Lỗi khi gọi LLM API ({self.provider}): {err_str}")
             if "429" in err_str or "Rate limit" in err_str:
                 return (
-                    "⚠️ Dịch vụ mô hình ngôn ngữ OpenRouter tạm thời đạt giới hạn số lượt gọi miễn phí trong ngày "
-                    "(Rate limit exceeded: 50 requests/day trên tài khoản Free). "
+                    f"⚠️ Dịch vụ mô hình ngôn ngữ ({self.provider}) tạm thời đạt giới hạn số lượt gọi. "
                     "Các tầng tìm kiếm pháp lý (BM25 + Qdrant Vector) vẫn hoạt động bình thường bên dưới."
                 )
             return f"⚠️ Dịch vụ mô hình ngôn ngữ gặp sự cố tạm thời: {err_str}"

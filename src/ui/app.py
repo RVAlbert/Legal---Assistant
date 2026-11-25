@@ -86,8 +86,9 @@ with st.sidebar:
     st.subheader("⚙️ Cấu hình hệ thống")
     settings = get_settings()
     is_api_online = check_api_server()
+    active_model = settings.GROQ_MODEL if settings.LLM_PROVIDER == "groq" else settings.OPENROUTER_MODEL
     st.write(f"- **Backend API:** {'🟢 Online (Port 8000)' if is_api_online else '🟠 Local Direct'}")
-    st.write(f"- **LLM:** `{settings.OPENROUTER_MODEL}`")
+    st.write(f"- **LLM ({settings.LLM_PROVIDER.upper()}):** `{active_model}`")
     st.write(f"- **Embedding:** `{settings.EMBEDDING_MODEL}`")
     st.write(f"- **Chỉ mục:** 500 chunks (BM25 + Qdrant)")
 

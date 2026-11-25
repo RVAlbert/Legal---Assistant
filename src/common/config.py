@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     # Môi trường
     APP_ENV: str = "development"
 
+    # LLM Settings
+    LLM_PROVIDER: str = "groq"  # "groq" hoặc "openrouter"
+    GROQ_API_KEY: str = ""
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
+
     # OpenRouter LLM
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
