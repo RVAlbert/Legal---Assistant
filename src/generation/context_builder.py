@@ -34,8 +34,9 @@ class ContextBuilder:
         expansion_sources: List[SearchResult],
         scope_status: ScopeStatus,
         scope_note: str = "",
+        chat_history: List[dict] | None = None,
     ) -> List[dict]:
-        """Tạo messages format chuẩn OpenAI chat completions."""
+        """Tạo messages format chuẩn OpenAI chat completions (có kèm ngữ cảnh hội thoại gần nhất)."""
         context_parts = []
 
         # 1. Nguồn chính
@@ -66,7 +67,7 @@ class ContextBuilder:
         if scope_status == ScopeStatus.INSUFFICIENT_DATA:
             extra_instruction = (
                 f"\nLƯU Ý: {scope_note}\n"
-                "Nếu nguồn trên không có mức tiền phạt cụ thể cho hành vi được hỏi, hãy nói ngắn gọn rằng hệ thống chưa tìm thấy mức phạt chi tiết này."
+                "Nếu nguồn trên không có thông tin cụ thể cho câu hỏi này, hãy trả lời rõ rằng dữ liệu hiện tại của hệ thống chưa có quy định này."
             )
 
         context_text = "\n".join(context_parts)
@@ -75,10 +76,17 @@ class ContextBuilder:
             f"CĂN CỨ PHÁP LÝ:\n{context_text}\n"
             f"{extra_instruction}\n"
             f"CÂU HỎI: {query}\n\n"
-            "Trả lời NGẮN GỌN, ĐÚNG TRỌNG TÂM (tiết kiệm token), ghi rõ văn bản + Điều, khoản, điểm."
+            "Trả lời NGẮN GỌN, ĐÚNG TRỌNG TÂM vào câu hỏi mới nhất (không lặp lại câu trả lời cũ). "
+            "Nếu câu hỏi không có quy định tương ứng trong nguồn trên, nói thẳng dữ liệu hiện tại không có quy định này hoặc nằm ngoài dữ liệu hệ thống."
         )
 
-        return [
-            {"role": "system", "content": _load_system_prompt()},
-            {"role": "user", "content": user_content},
-        ]
+        messages: List[dict] = [{"role": "system", "content": _load_system_prompt()}]
+        if chat_history:
+            # Đưa tối đa 4 lượt hội thoại gần nhất để AI hiểu mạch hỏi tiếp của user
+            for h in chat_history[-4:]:
+                role = h.get("role")
+                content = h.get("content", "")
+                if role in ("user", "assistant") and content:
+                    messages.append({"role": role, "content": content[:400]})
+        messages.append({"role": "user", "content": user_content})
+        return messages

@@ -45,29 +45,53 @@ class OpenRouterLLMClient:
             timeout=30.0,
         )
 
+    # Danh sách model dự phòng trên Groq khi model chính chạm giới hạn tốc độ (429)
+    GROQ_FALLBACK_MODELS = [
+        "qwen/qwen3.8-27b",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+    ]
+
     def generate(
         self,
         messages: List[dict],
         temperature: float = 0.2,
-        max_tokens: int = 600,
+        max_tokens: int = 350,
     ) -> str:
-        """Gửi prompt và nhận câu trả lời từ LLM với cơ chế bắt lỗi thân thiện."""
-        try:
-            logger.info(f"Gửi request tới LLM ({self.provider} - Model: {self.model})")
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-            content = response.choices[0].message.content or ""
-            return content.strip()
-        except Exception as e:
-            err_str = str(e)
-            logger.error(f"Lỗi khi gọi LLM API ({self.provider}): {err_str}")
-            if "429" in err_str or "Rate limit" in err_str:
-                return (
-                    f"⚠️ Dịch vụ mô hình ngôn ngữ ({self.provider}) tạm thời đạt giới hạn số lượt gọi. "
-                    "Các tầng tìm kiếm pháp lý (BM25 + Qdrant Vector) vẫn hoạt động bình thường bên dưới."
+        """Gửi prompt và nhận câu trả lời từ LLM với cơ chế tự động xoay vòng model dự phòng khi chạm rate limit."""
+        if not self.api_key:
+            return "⚠️ Dịch vụ mô hình ngôn ngữ chưa được cấu hình API Key."
+
+        models_to_try = [self.model]
+        if self.provider == "groq":
+            for m in self.GROQ_FALLBACK_MODELS:
+                if m not in models_to_try:
+                    models_to_try.append(m)
+
+        last_err = ""
+        for model_name in models_to_try:
+            try:
+                logger.info(f"Gửi request tới LLM ({self.provider} - Model: {model_name})")
+                response = self.client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
                 )
-            return f"⚠️ Dịch vụ mô hình ngôn ngữ gặp sự cố tạm thời: {err_str}"
+                content = response.choices[0].message.content or ""
+                if content.strip():
+                    return content.strip()
+            except Exception as e:
+                last_err = str(e)
+                logger.warning(f"Model {model_name} gặp lỗi: {last_err}")
+                if "401" in last_err or "Invalid API Key" in last_err:
+                    break
+                continue
+
+        logger.error(f"Tất cả các model LLM ({self.provider}) đều thất bại: {last_err}")
+        if "429" in last_err or "Rate limit" in last_err:
+            return (
+                f"⚠️ Dịch vụ mô hình ngôn ngữ ({self.provider}) tạm thời đạt giới hạn số lượt gọi. "
+                "Vui lòng thử lại sau vài giây."
+            )
+        return f"⚠️ Dịch vụ mô hình ngôn ngữ gặp sự cố tạm thời: {last_err}"

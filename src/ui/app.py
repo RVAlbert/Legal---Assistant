@@ -245,7 +245,7 @@ def check_api_server() -> bool:
         return False
 
 
-def query_backend(prompt: str) -> dict:
+def query_backend(prompt: str, chat_history: list | None = None) -> dict:
     if check_api_server():
         try:
             r = httpx.post(
@@ -259,7 +259,7 @@ def query_backend(prompt: str) -> dict:
             pass
 
     assistant = load_standalone_assistant()
-    res = assistant.answer_question(prompt)
+    res = assistant.answer_question(prompt, chat_history=chat_history)
     return res.model_dump()
 
 
@@ -389,13 +389,14 @@ elif user_input:
     query_to_run = user_input
 
 if query_to_run:
+    prior_history = list(st.session_state.messages)
     st.session_state.messages.append({"role": "user", "content": query_to_run})
     with st.chat_message("user", avatar="👤"):
         st.markdown(query_to_run)
 
     with st.chat_message("assistant", avatar="⚖️"):
         with st.spinner("Đang đối chiếu văn bản pháp luật..."):
-            res = query_backend(query_to_run)
+            res = query_backend(query_to_run, chat_history=prior_history)
             answer_text = res.get("answer", "Xin lỗi, hiện chưa thể tra cứu câu hỏi này.")
             st.markdown(answer_text)
             render_legal_sources(res)

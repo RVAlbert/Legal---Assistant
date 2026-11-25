@@ -39,7 +39,11 @@ class LegalRAGAssistant:
         self.citation_validator = CitationValidator()
         self.top_k = top_k
 
-    def answer_question(self, query: str) -> GenerationResponse:
+    def answer_question(
+        self,
+        query: str,
+        chat_history: Optional[list] = None,
+    ) -> GenerationResponse:
         start_time = time.time()
         logger.info(f"Tiếp nhận câu hỏi: \"{query}\"")
 
@@ -79,13 +83,14 @@ class LegalRAGAssistant:
         # 4. Mở rộng tham chiếu chéo nếu có
         expansion_sources = self.expander.expand(search_results)
 
-        # 5. Xây dựng prompt ngữ cảnh
+        # 5. Xây dựng prompt ngữ cảnh (có kèm lịch sử hội thoại gần nhất để hiểu câu hỏi nối tiếp)
         messages = self.context_builder.build_prompt(
             query=query,
             primary_sources=search_results,
             expansion_sources=expansion_sources,
             scope_status=post_check.status,
             scope_note=post_check.reason if post_check.status == ScopeStatus.INSUFFICIENT_DATA else "",
+            chat_history=chat_history,
         )
 
         # 6. Gọi LLM OpenRouter
@@ -125,123 +130,31 @@ class LegalRAGAssistant:
         sources: list,
         scope_status: ScopeStatus,
     ) -> str:
-        """Sinh câu trả lời phân tích ngữ cảnh chuẩn xác từ nguồn luật, không bắt keyword máy móc."""
+        """Fallback an toàn khi dịch vụ AI tạm thời không phản hồi: KHÔNG gán cứng từ khóa, KHÔNG trả lời lặp."""
         if not sources:
-            return "Không tìm thấy căn cứ pháp lý phù hợp trong Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15."
-
-        # 1. Trường hợp hỏi mức tiền phạt cụ thể (INSUFFICIENT_DATA)
-        if scope_status == ScopeStatus.INSUFFICIENT_DATA:
-            ans_lines = [
-                "**⚠️ Hiện tại hệ thống chưa có thông tin về mức tiền phạt cụ thể này trong cơ sở dữ liệu.**\n",
-                "**Giải thích chi tiết:**",
-                "- Cơ sở dữ liệu hiện tại của hệ thống chỉ bao gồm **Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15**.",
-                "- Văn bản luật này chỉ quy định về **quy tắc giao thông và các hành vi bị nghiêm cấm**, chứ **không quy định mức tiền phạt cụ thể** bằng tiền (đồng/triệu đồng).",
-            ]
-            if sources:
-                top_src = sources[0]
-                cl_txt = f", khoản {top_src.clause_number}" if top_src.clause_number else ""
-                pt_txt = f", điểm {top_src.point}" if top_src.point else ""
-                ans_lines.append(
-                    f"\n**Quy định liên quan trong Luật 36/2024/QH15:** [Điều {top_src.article_number}{cl_txt}{pt_txt}] - {top_src.article_title}:\n"
-                    f"> *\"{top_src.raw_content}\"*"
-                )
-            ans_lines.append(
-                "\n**Văn bản quy định mức tiền phạt:** Mức tiền phạt cụ thể được quy định tại "
-                "**Nghị định của Chính phủ về xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ** "
-                "(văn bản này hiện chưa được tích hợp vào hệ thống)."
+            return (
+                "Hiện tại dữ liệu của hệ thống không có quy định cho câu hỏi này "
+                "(hoặc nội dung nằm ngoài phạm vi Luật 36/2024/QH15 và Nghị định 168/2024/NĐ-CP)."
             )
-            return "\n".join(ans_lines)
+
+        if scope_status == ScopeStatus.INSUFFICIENT_DATA:
+            return (
+                "Hiện tại dữ liệu của hệ thống chưa có thông tin chi tiết cho nội dung bạn đang hỏi "
+                "(nằm ngoài dữ liệu văn bản pháp luật hiện có)."
+            )
 
         top_source = sources[0]
-        art_num = top_source.article_number
-        cl_num = top_source.clause_number
-        cl_str = f", khoản {cl_num}" if cl_num else ""
+        doc_tag = (
+            "Nghị định 168/2024/NĐ-CP"
+            if "168" in (top_source.law_number or "")
+            else f"Luật {top_source.law_number}"
+        )
+        cl_str = f", khoản {top_source.clause_number}" if top_source.clause_number else ""
         pt_str = f", điểm {top_source.point}" if top_source.point else ""
 
-        clean_q = query.lower()
-
-        # --- PHÂN TÍCH NGỮ NGHĨA CHỦ THỂ & Ý ĐỊNH CÂU HỎI (TRÁNH BẮT TỪ KHÓA MÁY MÓC) ---
-
-        # 1. Nhóm Điện thoại / Thiết bị điện tử
-        has_phone_kw = any(k in clean_q for k in ["điện thoại", "dùng tay", "tai nghe", "thiết bị điện tử"])
-        if has_phone_kw:
-            is_stopped = any(k in clean_q for k in ["dừng xe", "đỗ xe", "tấp vào lề", "tấp lề", "đứng lại", "dừng lại"])
-            if is_stopped:
-                return (
-                    "**Kết luận: ĐƯỢC PHÉP SỬ DỤNG ĐIỆN THOẠI NẾU ĐÃ DỪNG, ĐỖ XE ĐÚNG QUY ĐỊNH** ([Điều 9, khoản 4]).\n"
-                    "- Luật chỉ cấm dùng tay cầm điện thoại khi **đang điều khiển phương tiện**."
-                )
-            return (
-                f"**Kết luận: BỊ NGHIÊM CẤM** khi đang lái xe ([Điều {art_num}{cl_str}{pt_str}]).\n"
-                f"> *\"{top_source.raw_content}\"*"
-            )
-
-        # 2. Nhóm Uống rượu bia / Nhậu / Nồng độ cồn
-        has_alcohol_kw = any(k in clean_q for k in ["nhậu", "rượu", "bia", "cồn", "say", "men"])
-        if has_alcohol_kw:
-            # Kiểm tra chủ thể: Người được chở / ngồi sau / đi xe ôm / đi taxi / đi grab / đi nhờ
-            is_passenger = any(
-                p in clean_q
-                for p in [
-                    "được người khác chở", "được chở", "người khác chở", "người chở",
-                    "ngồi sau", "ngồi sau xe", "nhờ chở", "nhờ người", "nhờ bạn",
-                    "đi nhờ", "đi grab", "đi taxi", "đi xe ôm", "chở về", "được đèo",
-                    "người đi cùng", "hành khách", "bạn chở", "vợ chở", "chồng chở",
-                ]
-            )
-            # Kiểm tra hành vi dắt xe đi bộ
-            is_pushing_bike = any(p in clean_q for p in ["dắt bộ", "dắt xe", "dắt xe máy", "đi bộ dắt xe"])
-
-            if is_passenger:
-                return (
-                    "**Kết luận: HOÀN TOÀN ĐƯỢC PHÉP, KHÔNG VI PHẠM NỒNG ĐỘ CỒN** ([Điều 9, khoản 2]).\n"
-                    "- Luật chỉ cấm **người điều khiển phương tiện**, không cấm người ngồi sau xe hoặc hành khách.\n"
-                    "- **Lưu ý:** Người chở bạn không được có nồng độ cồn; bạn cần đội mũ bảo hiểm nếu đi xe máy ([Điều 33, khoản 2])."
-                )
-
-            if is_pushing_bike:
-                return (
-                    "**Kết luận: DẮT XE ĐI BỘ KHÔNG PHẢI LÀ ĐIỀU KHIỂN PHƯƠNG TIỆN** ([Điều 9, khoản 2]).\n"
-                    "- Không vi phạm nồng độ cồn nếu bạn tắt máy dắt bộ trên vỉa hè/lề đường và trước đó không lái xe."
-                )
-
-            # Trường hợp trực tiếp lái xe hoặc hỏi chung
-            return (
-                "**Kết luận: TUYỆT ĐỐI NGHIÊM CẤM ĐIỀU KHIỂN PHƯƠNG TIỆN** ([Điều 9, khoản 2]).\n"
-                f"> *\"{top_source.raw_content}\"*"
-            )
-
-        # 3. Nhóm Đèn tín hiệu giao thông (Đèn vàng / Đèn đỏ)
-        has_light_kw = any(k in clean_q for k in ["đèn đỏ", "đèn vàng", "vượt đèn", "tín hiệu đèn"])
-        if has_light_kw:
-            is_yellow_crossed = any(k in clean_q for k in ["đèn vàng", "vàng"]) and any(k in clean_q for k in ["qua vạch", "trên vạch", "vượt qua"])
-            if is_yellow_crossed:
-                return (
-                    "**Kết luận: ĐƯỢC ĐI TIẾP** nếu đã đi qua hoặc đang trên vạch dừng khi đèn chuyển vàng ([Điều 11, khoản 4, điểm b])."
-                )
-            return (
-                "**Kết luận: CẤM VƯỢT ĐÈN ĐỎ** ([Điều 11, khoản 4, điểm c]).\n"
-                "- Tín hiệu đèn đỏ là cấm đi; người tham gia giao thông bắt buộc phải dừng lại."
-            )
-
-        # 4. Nhóm Số người được chở trên xe máy (kẹp 3, chở 2 người)
-        has_passenger_capacity_kw = any(k in clean_q for k in ["chở 2", "chở 3", "kẹp 3", "kẹp ba", "chở ba", "chở mấy người", "mấy người trên xe"])
-        if has_passenger_capacity_kw:
-            return (
-                "**Kết luận: CHỈ ĐƯỢC CHỞ 01 NGƯỜI**, trừ 4 trường hợp được chở tối đa 02 người ([Điều 33, khoản 1]):\n"
-                "- Chở người bệnh cấp cứu; áp giải người vi phạm; trẻ em dưới 12 tuổi; người già yếu hoặc khuyết tật."
-            )
-
-        # 5. Nhóm Điểm giấy phép lái xe (Điều 58)
-        if any(k in clean_q for k in ["điểm gplx", "trừ điểm", "bị trừ điểm", "12 điểm", "phục hồi điểm"]):
-            return (
-                "**Kết luận: MỖI GPLX CÓ 12 ĐIỂM/NĂM** ([Điều 58]).\n"
-                "- Không bị trừ hết điểm và không vi phạm trong 12 tháng sẽ được phục hồi đủ 12 điểm.\n"
-                "- Bị trừ hết điểm thì sau ít nhất 06 tháng phải kiểm tra lại kiến thức để phục hồi."
-            )
-
-        # 6. Mặc định: Trích xuất ngắn gọn theo Điều luật
         return (
-            f"**Căn cứ:** [Điều {art_num}{cl_str}{pt_str}] - {top_source.article_title}:\n"
-            f"> *\"{top_source.raw_content}\"*"
+            f"Hệ thống AI phân tích đang bận tạm thời. Dưới đây là điều khoản gần nhất tìm thấy trong dữ liệu:\n\n"
+            f"**[{doc_tag}, Điều {top_source.article_number}{cl_str}{pt_str}]** — {top_source.article_title}:\n"
+            f"> *\"{top_source.raw_content}\"*\n\n"
+            "*(Nếu nội dung trên chưa đúng câu hỏi của bạn, có thể quy định này chưa có trong dữ liệu hiện tại hoặc bạn hãy thử hỏi lại sau vài giây để AI phân tích trực tiếp.)*"
         )
