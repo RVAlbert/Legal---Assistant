@@ -1,4 +1,5 @@
 import base64
+import os
 import sys
 from pathlib import Path
 import httpx
@@ -8,11 +9,21 @@ import streamlit as st
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
+# Đồng bộ biến môi trường từ Streamlit Secrets (khi deploy trên Streamlit Cloud)
+try:
+    for _k, _v in st.secrets.items():
+        if isinstance(_v, str) and _k not in os.environ:
+            os.environ[_k] = _v
+except Exception:
+    pass
+
 from src.common.config import get_settings
 from src.generation.generator import LegalRAGAssistant
+from src.ingestion.chunker import StructureAwareChunker
+from src.ingestion.docx_parser import DocxLawParser
+from src.ingestion.text_parser import TextLawParser
 from src.retrieval.bm25_search import BM25SearchEngine
 from src.retrieval.hybrid_search import HybridSearchEngine
-from src.retrieval.vector_search import VectorSearchEngine
 
 # Cấu hình trang Streamlit
 st.set_page_config(
@@ -184,11 +195,44 @@ def _inject_legal_theme():
 
 @st.cache_resource(show_spinner=False)
 def load_standalone_assistant():
-    """Tải trợ lý pháp lý cục bộ nếu dịch vụ API chưa chạy."""
+    """Tải trợ lý pháp lý cục bộ; tự động khởi tạo chỉ mục BM25 nếu chạy trên Streamlit Cloud."""
     settings = get_settings()
+    bm25_path = settings.INDEXES_DIR / "bm25_index.pkl"
     bm25 = BM25SearchEngine()
-    bm25.load(settings.INDEXES_DIR / "bm25_index.pkl")
-    vector = VectorSearchEngine()
+
+    if bm25_path.exists():
+        bm25.load(bm25_path)
+    else:
+        chunker = StructureAwareChunker(max_article_chars=1200, max_clause_chars=1000)
+        chunks = []
+        law_docx = settings.INPUT_DIR / "luat_giao_thong_2024_clean.docx"
+        if law_docx.exists():
+            chunks.extend(chunker.chunk_document(DocxLawParser(law_docx).parse()))
+
+        nd168_txt = settings.INPUT_DIR / "nghi_dinh_168_2024_clean.txt"
+        if nd168_txt.exists():
+            nd_doc = TextLawParser(
+                file_path=nd168_txt,
+                document_id="nghi_dinh_168_2024",
+                law_name="Nghị định quy định xử phạt vi phạm hành chính về trật tự, an toàn giao thông trong lĩnh vực giao thông đường bộ; trừ điểm, phục hồi điểm giấy phép lái xe",
+                law_number="168/2024/NĐ-CP",
+                issue_date="26/12/2024",
+                effective_date="01/01/2025",
+            ).parse()
+            chunks.extend(chunker.chunk_document(nd_doc))
+
+        bm25.build_index(chunks)
+
+    # Chỉ nạp Vector Search nếu đã có Qdrant local index và đủ thư viện (chế độ local)
+    vector = None
+    qdrant_dir = Path(settings.QDRANT_PATH)
+    if qdrant_dir.exists() and any(qdrant_dir.iterdir()):
+        try:
+            from src.retrieval.vector_search import VectorSearchEngine
+            vector = VectorSearchEngine()
+        except Exception:
+            vector = None
+
     hybrid = HybridSearchEngine(bm25_engine=bm25, vector_engine=vector)
     return LegalRAGAssistant(hybrid_engine=hybrid)
 

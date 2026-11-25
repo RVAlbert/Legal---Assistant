@@ -1,10 +1,8 @@
-from typing import Dict, List, Optional
-from src.common.config import get_settings
+from typing import Any, Dict, List, Optional
 from src.common.logger import get_logger
 from src.retrieval.bm25_search import BM25SearchEngine
 from src.retrieval.models import SearchResult
 from src.retrieval.query_expander import QueryExpander
-from src.retrieval.vector_search import VectorSearchEngine
 
 logger = get_logger("hybrid_search")
 
@@ -15,7 +13,7 @@ class HybridSearchEngine:
     def __init__(
         self,
         bm25_engine: BM25SearchEngine,
-        vector_engine: VectorSearchEngine,
+        vector_engine: Optional[Any] = None,
         rrf_k: int = 60,
         bm25_weight: float = 1.0,
         semantic_weight: float = 1.0,
@@ -41,8 +39,12 @@ class HybridSearchEngine:
         # 1. Chạy tìm kiếm từ khóa BM25
         bm25_results = self.bm25_engine.search(expanded_query, top_k=candidate_k)
 
-        # 2. Chạy tìm kiếm ngữ nghĩa Semantic
-        semantic_results = self.vector_engine.search(expanded_query, top_k=candidate_k)
+        # 2. Chạy tìm kiếm ngữ nghĩa Semantic (nếu có Vector Engine)
+        semantic_results = (
+            self.vector_engine.search(expanded_query, top_k=candidate_k)
+            if self.vector_engine is not None
+            else []
+        )
 
         # 3. Tính điểm RRF Fusion
         # RRF_score(d) = sum( weight / (k + rank_i(d)) )

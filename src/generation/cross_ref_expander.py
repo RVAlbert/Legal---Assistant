@@ -1,8 +1,7 @@
 import re
-from typing import List, Set
+from typing import Any, List, Optional, Set
 from src.common.logger import get_logger
 from src.retrieval.models import SearchResult
-from src.retrieval.vector_search import VectorSearchEngine
 
 logger = get_logger("cross_ref_expander")
 
@@ -14,12 +13,12 @@ class CrossReferenceExpander:
     tự động truy xuất bổ sung tối đa 2 chunk của Điều được dẫn chiếu để LLM có ngữ cảnh hoàn chỉnh.
     """
 
-    def __init__(self, vector_engine: VectorSearchEngine, max_expansions: int = 2):
+    def __init__(self, vector_engine: Optional[Any] = None, max_expansions: int = 2):
         self.vector_engine = vector_engine
         self.max_expansions = max_expansions
 
     def expand(self, primary_results: List[SearchResult]) -> List[SearchResult]:
-        if not primary_results:
+        if not primary_results or self.vector_engine is None:
             return []
 
         # Tập hợp các Điều đã có trong nguồn chính
