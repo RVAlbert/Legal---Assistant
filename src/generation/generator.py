@@ -43,13 +43,13 @@ class LegalRAGAssistant:
         start_time = time.time()
         logger.info(f"Tiếp nhận câu hỏi: \"{query}\"")
 
-        # 1. Đánh giá nhanh trước tìm kiếm (Pre-retrieval scope check)
+        # 1. Đánh giá nhanh trước tìm kiếm (Pre-retrieval: giao tiếp xã hội, lạc đề/ghẹo chọc, ngoài phạm vi)
         pre_check = self.scope_validator.assess_pre_retrieval(query)
-        if pre_check and pre_check.status == ScopeStatus.OUT_OF_SCOPE:
+        if pre_check:
             latency = (time.time() - start_time) * 1000
             return GenerationResponse(
                 query=query,
-                scope_status=ScopeStatus.OUT_OF_SCOPE,
+                scope_status=pre_check.status,
                 answer=pre_check.reason,
                 citations=[],
                 sources=[],
@@ -163,28 +163,21 @@ class LegalRAGAssistant:
         # --- PHÂN TÍCH NGỮ NGHĨA CHỦ THỂ & Ý ĐỊNH CÂU HỎI (TRÁNH BẮT TỪ KHÓA MÁY MÓC) ---
 
         # 1. Nhóm Điện thoại / Thiết bị điện tử
-        has_phone_kw = any(k in clean_q for k in ["điện thoại", "dùng tay", "tai nghe", "thiết bị điện tử"]) or (art_num == 9 and cl_num == 4)
+        has_phone_kw = any(k in clean_q for k in ["điện thoại", "dùng tay", "tai nghe", "thiết bị điện tử"])
         if has_phone_kw:
             is_stopped = any(k in clean_q for k in ["dừng xe", "đỗ xe", "tấp vào lề", "tấp lề", "đứng lại", "dừng lại"])
             if is_stopped:
                 return (
-                    "**Kết luận: ĐƯỢC PHÉP SỬ DỤNG ĐIỆN THOẠI NẾU ĐÃ DỪNG, ĐỖ XE ĐÚNG QUY ĐỊNH.**\n\n"
-                    "**Căn cứ pháp lý:** [Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15, Điều 9, khoản 4]:\n"
-                    f"> *\"{top_source.raw_content}\"*\n\n"
-                    "**Giải thích chi tiết:**\n"
-                    "Khoản 4 Điều 9 chỉ nghiêm cấm hành vi *\"Dùng tay cầm và sử dụng điện thoại hoặc thiết bị điện tử khác khi đang điều khiển phương tiện tham gia giao thông đường bộ\"*.\n"
-                    "Do đó, nếu bạn tấp xe vào lề đường, dừng hoặc đỗ xe đúng nơi quy định an toàn thì việc cầm và nghe gọi, nhắn tin trên điện thoại là hoàn toàn hợp pháp."
+                    "**Kết luận: ĐƯỢC PHÉP SỬ DỤNG ĐIỆN THOẠI NẾU ĐÃ DỪNG, ĐỖ XE ĐÚNG QUY ĐỊNH** ([Điều 9, khoản 4]).\n"
+                    "- Luật chỉ cấm dùng tay cầm điện thoại khi **đang điều khiển phương tiện**."
                 )
             return (
-                "**Kết luận: HÀNH VI BỊ NGHIÊM CẤM KHI ĐANG ĐIỀU KHIỂN PHƯƠNG TIỆN.**\n\n"
-                f"**Căn cứ pháp lý:** [Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15, Điều {art_num}{cl_str}{pt_str}]:\n"
-                f"> *\"{top_source.raw_content}\"*\n\n"
-                "**Giải thích chi tiết:** Luật nghiêm cấm người đang lái xe (ô tô, xe máy...) dùng tay cầm và sử dụng điện thoại. "
-                "Nếu có nhu cầu nghe gọi, bạn phải dừng hoặc đỗ xe đúng nơi quy định trước khi sử dụng."
+                f"**Kết luận: BỊ NGHIÊM CẤM** khi đang lái xe ([Điều {art_num}{cl_str}{pt_str}]).\n"
+                f"> *\"{top_source.raw_content}\"*"
             )
 
         # 2. Nhóm Uống rượu bia / Nhậu / Nồng độ cồn
-        has_alcohol_kw = any(k in clean_q for k in ["nhậu", "rượu", "bia", "cồn", "say", "men"]) or (art_num == 9 and cl_num == 2)
+        has_alcohol_kw = any(k in clean_q for k in ["nhậu", "rượu", "bia", "cồn", "say", "men"])
         if has_alcohol_kw:
             # Kiểm tra chủ thể: Người được chở / ngồi sau / đi xe ôm / đi taxi / đi grab / đi nhờ
             is_passenger = any(
@@ -201,89 +194,54 @@ class LegalRAGAssistant:
 
             if is_passenger:
                 return (
-                    "**Kết luận: HOÀN TOÀN ĐƯỢC PHÉP, BẠN KHÔNG BỊ XỬ PHẠT VỀ NỒNG ĐỘ CỒN.**\n\n"
-                    "**Căn cứ pháp lý:** [Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15, Điều 9, khoản 2] - Các hành vi bị nghiêm cấm:\n"
-                    f"> *\"{top_source.raw_content}\"*\n\n"
-                    "**Giải thích chi tiết theo Luật:**\n"
-                    "1. **Chỉ cấm người trực tiếp điều khiển:** Khoản 2 Điều 9 Luật 36/2024/QH15 quy định nghiêm cấm: *\"Điều khiển phương tiện tham gia giao thông đường bộ mà trong máu hoặc hơi thở có nồng độ cồn.\"* Quy định này **chỉ áp dụng đối với người trực tiếp điều khiển phương tiện (người lái xe)**, hoàn toàn **không cấm người ngồi sau xe hoặc hành khách** có nồng độ cồn.\n"
-                    "2. **Hành vi đúng quy định và được khuyến khích:** Khi bạn đã uống rượu, bia mà chủ động không cầm lái, nhờ người khác chở về, đi taxi hoặc sử dụng xe công nghệ là hành vi đúng pháp luật và đảm bảo an toàn tính mạng.\n\n"
-                    "**Các điều kiện an toàn bắt buộc khi được chở:**\n"
-                    "- **Người lái xe (người chở bạn):** Tuyệt đối không được có nồng độ cồn trong máu hoặc hơi thở và phải có giấy phép lái xe phù hợp.\n"
-                    "- **Đội mũ bảo hiểm:** Nếu đi mô tô, xe gắn máy, bạn (người ngồi sau) bắt buộc phải đội mũ bảo hiểm cài quai đúng quy cách theo quy định tại [Điều 33, khoản 2].\n"
-                    "- **Trách nhiệm người ngồi sau:** Ngồi an toàn, không có hành vi bám, kéo, đẩy hoặc quậy phá gây cản trở người lái xe làm mất trật tự an toàn giao thông theo [Điều 33, khoản 1]."
+                    "**Kết luận: HOÀN TOÀN ĐƯỢC PHÉP, KHÔNG VI PHẠM NỒNG ĐỘ CỒN** ([Điều 9, khoản 2]).\n"
+                    "- Luật chỉ cấm **người điều khiển phương tiện**, không cấm người ngồi sau xe hoặc hành khách.\n"
+                    "- **Lưu ý:** Người chở bạn không được có nồng độ cồn; bạn cần đội mũ bảo hiểm nếu đi xe máy ([Điều 33, khoản 2])."
                 )
 
             if is_pushing_bike:
                 return (
-                    "**Kết luận: HÀNH VI DẮT XE MÁY ĐI BỘ KHÔNG PHẢI LÀ ĐIỀU KHIỂN PHƯƠNG TIỆN, NHƯNG CẦN CHÚ Ý ĐIỀU KIỆN THỰC TẾ.**\n\n"
-                    "**Căn cứ pháp lý:** [Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15, Điều 9, khoản 2] - Các hành vi bị nghiêm cấm:\n"
-                    f"> *\"{top_source.raw_content}\"*\n\n"
-                    "**Giải thích chi tiết:**\n"
-                    "1. Luật chỉ nghiêm cấm hành vi **\"điều khiển phương tiện\"** khi trong máu hoặc hơi thở có nồng độ cồn. Người dắt xe máy đi bộ đã tắt máy không được xem là đang điều khiển phương tiện cơ giới mà tham gia giao thông với tư cách người đi bộ dắt vật dụng.\n"
-                    "2. **Yêu cầu an toàn:** Người dắt xe phải đi trên hè phố, lề đường hoặc sát mép đường bên phải theo chiều đi, không được gây cản trở giao thông trên lòng đường.\n"
-                    "3. **Lưu ý thực tế:** Lực lượng Cảnh sát giao thông có quyền trích xuất camera hoặc xác minh nhân chứng. Nếu xác định trước đó bạn đã trực tiếp nổ máy lái xe rồi mới nhảy xuống dắt bộ nhằm đối phó chốt kiểm tra, bạn vẫn bị xử lý vi phạm nồng độ cồn khi điều khiển phương tiện."
+                    "**Kết luận: DẮT XE ĐI BỘ KHÔNG PHẢI LÀ ĐIỀU KHIỂN PHƯƠNG TIỆN** ([Điều 9, khoản 2]).\n"
+                    "- Không vi phạm nồng độ cồn nếu bạn tắt máy dắt bộ trên vỉa hè/lề đường và trước đó không lái xe."
                 )
 
             # Trường hợp trực tiếp lái xe hoặc hỏi chung
             return (
-                "**Kết luận: TUYỆT ĐỐI NGHIÊM CẤM ĐIỀU KHIỂN PHƯƠNG TIỆN.**\n\n"
-                "**Căn cứ pháp lý:** [Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15, Điều 9, khoản 2] - Các hành vi bị nghiêm cấm:\n"
-                f"> *\"{top_source.raw_content}\"*\n\n"
-                "**Giải thích chi tiết:** Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15 quy định nghiêm cấm tuyệt đối "
-                "mọi hành vi điều khiển phương tiện tham gia giao thông đường bộ (bao gồm ô tô, xe máy, xe máy điện, xe đạp...) "
-                "mà trong máu hoặc hơi thở có nồng độ cồn (áp dụng mức nồng độ cồn bằng 0). "
-                "Không phân biệt uống ít hay nhiều bia, rượu ('nhậu'), chỉ cần trong hơi thở hoặc máu còn cồn thì hoàn toàn không được phép lái xe."
+                "**Kết luận: TUYỆT ĐỐI NGHIÊM CẤM ĐIỀU KHIỂN PHƯƠNG TIỆN** ([Điều 9, khoản 2]).\n"
+                f"> *\"{top_source.raw_content}\"*"
             )
 
         # 3. Nhóm Đèn tín hiệu giao thông (Đèn vàng / Đèn đỏ)
-        has_light_kw = any(k in clean_q for k in ["đèn đỏ", "đèn vàng", "vượt đèn", "tín hiệu đèn"]) or art_num == 11
+        has_light_kw = any(k in clean_q for k in ["đèn đỏ", "đèn vàng", "vượt đèn", "tín hiệu đèn"])
         if has_light_kw:
             is_yellow_crossed = any(k in clean_q for k in ["đèn vàng", "vàng"]) and any(k in clean_q for k in ["qua vạch", "trên vạch", "vượt qua"])
             if is_yellow_crossed:
                 return (
-                    "**Kết luận: ĐƯỢC PHÉP ĐI TIẾP NẾU ĐÃ ĐI QUA HOẶC ĐANG TRÊN VẠCH DỪNG KHI ĐÈN CHUYỂN VÀNG.**\n\n"
-                    "**Căn cứ pháp lý:** [Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15, Điều 11, khoản 4, điểm b]:\n"
-                    "> *\"Tín hiệu đèn màu vàng là phải dừng lại trước vạch dừng; trường hợp đang đi trên vạch dừng hoặc đã đi qua vạch dừng khi tín hiệu đèn màu vàng thì được đi tiếp.\"*\n\n"
-                    "**Giải thích chi tiết:** Nếu phương tiện chưa chạm hoặc chưa vượt qua vạch dừng khi đèn chuyển sang màu vàng thì bắt buộc phải dừng lại. "
-                    "Chỉ khi phương tiện đã đè vạch hoặc vượt qua vạch dừng trước thời điểm đèn vàng bật sáng thì mới được tiếp tục lưu thông để tránh phanh gấp gây nguy hiểm."
+                    "**Kết luận: ĐƯỢC ĐI TIẾP** nếu đã đi qua hoặc đang trên vạch dừng khi đèn chuyển vàng ([Điều 11, khoản 4, điểm b])."
                 )
             return (
-                "**Kết luận: VƯỢT ĐÈN ĐỎ LÀ HÀNH VI BỊ CẤM TUYỆT ĐỐI.**\n\n"
-                "**Căn cứ pháp lý:** [Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15, Điều 11, khoản 4, điểm c]:\n"
-                "> *\"Tín hiệu đèn màu đỏ là cấm đi; người tham gia giao thông phải chấp hành hiệu lệnh của đèn tín hiệu giao thông.\"*"
+                "**Kết luận: CẤM VƯỢT ĐÈN ĐỎ** ([Điều 11, khoản 4, điểm c]).\n"
+                "- Tín hiệu đèn đỏ là cấm đi; người tham gia giao thông bắt buộc phải dừng lại."
             )
 
         # 4. Nhóm Số người được chở trên xe máy (kẹp 3, chở 2 người)
-        has_passenger_capacity_kw = any(k in clean_q for k in ["chở 2", "chở 3", "kẹp 3", "kẹp ba", "chở ba", "chở mấy người", "mấy người trên xe"]) or (art_num == 33 and cl_num == 1)
+        has_passenger_capacity_kw = any(k in clean_q for k in ["chở 2", "chở 3", "kẹp 3", "kẹp ba", "chở ba", "chở mấy người", "mấy người trên xe"])
         if has_passenger_capacity_kw:
             return (
-                "**Kết luận: XE MÔ TÔ, XE GẮN MÁY CHỈ ĐƯỢC CHỞ 01 NGƯỜI, NGOẠI TRỪ 04 TRƯỜNG HỢP ĐƯỢC CHỞ TỐI ĐA 02 NGƯỜI.**\n\n"
-                "**Căn cứ pháp lý:** [Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15, Điều 33, khoản 1]:\n"
-                "> *\"1. Người lái xe mô tô hai bánh, xe gắn máy chỉ được chở một người, trừ những trường hợp sau thì được chở tối đa hai người:\n"
-                "> a) Chở người bệnh đi cấp cứu;\n"
-                "> b) Áp giải người có hành vi vi phạm pháp luật;\n"
-                "> c) Trẻ em dưới 12 tuổi;\n"
-                "> d) Người già yếu hoặc người khuyết tật.\"*\n\n"
-                "**Điểm mới cần lưu ý:** Luật 36/2024/QH15 nâng độ tuổi trẻ em được chở thêm lên **dưới 12 tuổi** (trước đây theo Luật 2008 là dưới 14 tuổi), đồng thời bổ sung trường hợp chở người già yếu hoặc người khuyết tật."
+                "**Kết luận: CHỈ ĐƯỢC CHỞ 01 NGƯỜI**, trừ 4 trường hợp được chở tối đa 02 người ([Điều 33, khoản 1]):\n"
+                "- Chở người bệnh cấp cứu; áp giải người vi phạm; trẻ em dưới 12 tuổi; người già yếu hoặc khuyết tật."
             )
 
         # 5. Nhóm Điểm giấy phép lái xe (Điều 58)
-        if art_num == 58 or any(k in clean_q for k in ["điểm gplx", "trừ điểm", "bị trừ điểm", "12 điểm", "phục hồi điểm"]):
+        if any(k in clean_q for k in ["điểm gplx", "trừ điểm", "bị trừ điểm", "12 điểm", "phục hồi điểm"]):
             return (
-                "**Kết luận: MỖI GIẤY PHÉP LÁI XE CÓ 12 ĐIỂM TRONG MỘT NĂM.**\n\n"
-                "**Căn cứ pháp lý:** [Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15, Điều 58] - Điểm của giấy phép lái xe:\n"
-                f"> *\"{top_source.raw_content}\"*\n\n"
-                "**Các nguyên tắc quan trọng:**\n"
-                "1. Điểm được dùng để quản lý việc chấp hành pháp luật về trật tự an toàn giao thông của người lái xe.\n"
-                "2. Giấy phép lái xe được phục hồi đủ 12 điểm khi chưa bị trừ hết điểm và không bị trừ điểm trong thời hạn 12 tháng kể từ ngày bị trừ điểm gần nhất.\n"
-                "3. Trường hợp bị trừ hết điểm: Không được điều khiển phương tiện theo GPLX đó. Sau thời hạn ít nhất 06 tháng, phải tham gia kiểm tra lại kiến thức pháp luật và đạt yêu cầu mới được phục hồi đủ 12 điểm."
+                "**Kết luận: MỖI GPLX CÓ 12 ĐIỂM/NĂM** ([Điều 58]).\n"
+                "- Không bị trừ hết điểm và không vi phạm trong 12 tháng sẽ được phục hồi đủ 12 điểm.\n"
+                "- Bị trừ hết điểm thì sau ít nhất 06 tháng phải kiểm tra lại kiến thức để phục hồi."
             )
 
-        # 6. Mặc định: Trích xuất trực tiếp thông tin chuẩn xác theo Điều luật và câu hỏi
+        # 6. Mặc định: Trích xuất ngắn gọn theo Điều luật
         return (
-            f"**Kết luận:** Quy định tại [Điều {art_num} - {top_source.article_title}].\n\n"
-            f"**Căn cứ pháp lý:** [Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15, Điều {art_num}{cl_str}{pt_str}]:\n"
-            f"> *\"{top_source.raw_content}\"*\n\n"
-            f"**Nội dung giải thích:** Căn cứ theo quy định tại Điều {art_num} của Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15, "
-            f"người tham gia giao thông có trách nhiệm tuân thủ đầy đủ các quy tắc nêu trên để bảo đảm an toàn tính mạng, sức khỏe và trật tự giao thông."
+            f"**Căn cứ:** [Điều {art_num}{cl_str}{pt_str}] - {top_source.article_title}:\n"
+            f"> *\"{top_source.raw_content}\"*"
         )

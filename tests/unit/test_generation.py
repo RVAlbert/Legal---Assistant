@@ -155,3 +155,23 @@ def test_extractive_fallback_semantic_intent():
     )
     assert "ĐƯỢC PHÉP SỬ DỤNG ĐIỆN THOẠI" in ans_phone_stopped
 
+
+def test_scope_validator_social_and_teasing():
+    validator = ScopeValidator()
+
+    # Giao tiếp xã hội
+    check_social = validator.assess_pre_retrieval("bạn khỏe không")
+    assert check_social is not None
+    assert check_social.status == ScopeStatus.ANSWERED
+
+    # Lạc đề / ghẹo chọc
+    check_tease1 = validator.assess_pre_retrieval("bạn hiểu ý mình nói ko")
+    assert check_tease1 is not None
+    assert check_tease1.status == ScopeStatus.OUT_OF_SCOPE
+    assert "Hiện tại mình chưa có kết quả bạn yêu cầu" in check_tease1.reason
+
+    check_tease2 = validator.assess_pre_retrieval("bạn hiểu không")
+    assert check_tease2 is not None
+    assert check_tease2.status == ScopeStatus.OUT_OF_SCOPE
+
+

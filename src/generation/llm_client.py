@@ -49,7 +49,7 @@ class OpenRouterLLMClient:
         self,
         messages: List[dict],
         temperature: float = 0.2,
-        max_tokens: int = 1500,
+        max_tokens: int = 600,
     ) -> str:
         """Gửi prompt và nhận câu trả lời từ LLM với cơ chế bắt lỗi thân thiện."""
         try:

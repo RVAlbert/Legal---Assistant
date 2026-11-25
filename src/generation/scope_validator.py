@@ -23,6 +23,26 @@ class ScopeValidator:
         "dịch tiếng anh", "thời tiết hôm nay", "kể chuyện", "viết văn",
     ]
 
+    # Nhóm câu giao tiếp xã hội, chào hỏi, thăm hỏi lối sống
+    SOCIAL_GREETING_PATTERNS = re.compile(
+        r"^(chào( bạn| bot| em| anh| ad)?|xin chào|hello|hi|helo|alo|hế lô)\b|"
+        r"\b(bạn khỏe không|bạn khỏe ko|khoe khong|khoe ko|hôm nay thế nào)\b|"
+        r"\b(bạn tên gì|bạn là ai|bạn là gì|giới thiệu về bạn)\b|"
+        r"\b(cảm ơn|cảm ơn bạn|thanks|thank you|tạm biệt|bye|bye bye)\b",
+        re.IGNORECASE,
+    )
+
+    # Nhóm câu hỏi lạc đề, ghẹo chọc, châm biếm, vô nghĩa
+    TEASING_OFF_TOPIC_PATTERNS = re.compile(
+        r"\b(bạn hiểu ý (mình|tôi|ta)( nói)? (ko|không|hông|chưa)?)\b|"
+        r"\b(bạn (có )?hiểu (không|ko|hông|chưa|được không))\b|"
+        r"^(hiểu (không|ko|hông|chưa)|có hiểu không)\??$|"
+        r"\b(bạn (ngốc|ngu|dở|khùng|điên|thông minh))\b|"
+        r"\b(kể chuyện|kể chuyện cười|hát|hát một bài|chuyện tình yêu|tâm sự đi)\b|"
+        r"\b(ghẹo|chọc tí|đùa tí|nói linh tinh)\b",
+        re.IGNORECASE,
+    )
+
     # Danh sách từ khóa hỏi mức tiền phạt cụ thể
     FINE_KEYWORDS = [
         "phạt bao nhiêu tiền", "phạt bao nhiêu", "tiền phạt", "mức phạt tiền",
@@ -44,7 +64,7 @@ class ScopeValidator:
     )
 
     def assess_pre_retrieval(self, query: str) -> Optional[ScopeAssessment]:
-        """Kiểm tra nhanh trước khi tìm kiếm (từ khóa cấm, rỗng hoặc quá ngắn)."""
+        """Kiểm tra nhanh trước khi tìm kiếm (giao tiếp xã hội, ghẹo chọc lạc đề, ngoài phạm vi)."""
         clean_q = query.strip().lower()
 
         if not clean_q or len(clean_q) < 3:
@@ -53,7 +73,25 @@ class ScopeValidator:
                 reason="Câu hỏi rỗng hoặc quá ngắn để tra cứu.",
             )
 
-        # Kiểm tra từ khóa ngoài phạm vi
+        # 1. Đường đi 1: Giao tiếp xã hội / Chào hỏi thân thiện về đời sống
+        if self.SOCIAL_GREETING_PATTERNS.search(clean_q):
+            return ScopeAssessment(
+                status=ScopeStatus.ANSWERED,
+                reason=(
+                    "Chào bạn! Mình là Trợ lý AI hỗ trợ tra cứu **Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15**. "
+                    "Mình rất khỏe và luôn sẵn sàng hỗ trợ bạn! "
+                    "Hôm nay bạn có câu hỏi hay tình huống giao thông nào cần mình giải đáp không?"
+                ),
+            )
+
+        # 2. Đường đi 2: Câu hỏi lạc đề, ghẹo chọc, châm biếm
+        if self.TEASING_OFF_TOPIC_PATTERNS.search(clean_q):
+            return ScopeAssessment(
+                status=ScopeStatus.OUT_OF_SCOPE,
+                reason="Hiện tại mình chưa có kết quả bạn yêu cầu, xin thử lại. Bạn vui lòng đặt câu hỏi liên quan đến Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15 để mình hỗ trợ nhé!",
+            )
+
+        # 3. Kiểm tra từ khóa ngoài phạm vi giao thông
         for kw in self.OUT_OF_SCOPE_KEYWORDS:
             if kw in clean_q:
                 return ScopeAssessment(
