@@ -31,7 +31,7 @@ COLLOQUIAL_SEMANTIC_MAPPINGS: List[Tuple[str, str]] = [
     # Đèn tín hiệu giao thông
     (
         r"\b(vượt đèn đỏ|vượt đèn vàng|vượt đèn|đèn đỏ|đèn vàng)\b",
-        "tín hiệu đèn giao thông đèn màu đỏ cấm đi",
+        "không chấp hành hiệu lệnh của đèn tín hiệu giao thông đèn màu đỏ cấm đi",
     ),
     # Tốc độ
     (
