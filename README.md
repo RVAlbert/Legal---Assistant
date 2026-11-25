@@ -1,16 +1,22 @@
-# VN-Legal RAG Assistant 🚦⚖️
+# VN-Legal RAG Assistant ⚖️🚦
 
-**Hệ thống Trợ lý Tra cứu Luật Trật tự, an toàn giao thông đường bộ Việt Nam (Luật số 36/2024/QH15) bằng mô hình RAG (Retrieval-Augmented Generation).**
+**Hệ thống Trợ lý Tra cứu Pháp luật Giao thông Đường bộ Việt Nam (Luật số 36/2024/QH15 & Nghị định số 168/2024/NĐ-CP) ứng dụng kiến trúc RAG (Retrieval-Augmented Generation).**
 
 ---
 
 ## 📌 1. Giới thiệu tổng quan
 
-Hệ thống được thiết kế chuyên biệt để giải quyết các vấn đề cốt lõi trong tra cứu văn bản pháp luật Việt Nam:
-1. **Tìm kiếm lai kết hợp (Hybrid Search):** Hợp nhất giữa tìm kiếm từ khóa chính xác (`BM25Plus`) và tìm kiếm ngữ nghĩa sâu (`BAAI/bge-m3` + `Qdrant Vector DB`) qua thuật toán **Reciprocal Rank Fusion (RRF)**.
-2. **Structure-Aware Chunking:** Phân đoạn văn bản nhận thức cấu trúc Chương - Điều - Khoản - Điểm, lặp lại ngữ cảnh tiêu đề, giữ trọn ý nghĩa pháp lý (tổng cộng 500 chunks tối ưu).
-3. **Phân loại phạm vi & Kiểm duyệt trích dẫn chặt chẽ:** Tự động phát hiện câu hỏi ngoài phạm vi (`OUT_OF_SCOPE`) hoặc thiếu dữ liệu mức tiền phạt (`INSUFFICIENT_DATA`), ép trích dẫn chính xác `[Điều X, khoản Y]` và ngăn chặn triệt để ảo giác (Hallucination).
-4. **Mô hình ngôn ngữ thế hệ mới:** Tích hợp trực tiếp với OpenRouter LLM (`nvidia/nemotron-3-ultra-550b-a55b:free`).
+Hệ thống hỗ trợ tra cứu chính xác quy tắc giao thông, hành vi bị nghiêm cấm, phân hạng/điểm giấy phép lái xe và **mức xử phạt tiền cụ thể** dựa trên 2 văn bản pháp luật chính thức có hiệu lực từ **01/01/2025**:
+
+1. **Luật Trật tự, an toàn giao thông đường bộ số 36/2024/QH15** (9 Chương, 89 Điều — 500 chunks).
+2. **Nghị định số 168/2024/NĐ-CP** quy định xử phạt vi phạm hành chính & trừ điểm, phục hồi điểm GPLX (4 Chương, 55 Điều — 768 chunks).
+
+### Tính năng nổi bật
+- **Tìm kiếm lai kết hợp (Hybrid Search):** Hợp nhất `BM25Plus` (từ khóa tiếng Việt + mở rộng từ ngữ đời thường) và `BAAI/bge-m3` + `Qdrant Vector DB` qua thuật toán **Reciprocal Rank Fusion (RRF)** trên tổng cộng **1,268 chunks**.
+- **Structure-Aware Chunking:** Bảo toàn cấu trúc Chương – Điều – Khoản – Điểm, gắn siêu dữ liệu tên văn bản và trích xuất tham chiếu chéo.
+- **AI Skill trả lời ngắn gọn, đúng trọng tâm:** Cấu hình skill tại `src/generation/skills/concise_legal_answer.md` giúp tiết kiệm token, trả lời thẳng kết luận kèm trích dẫn chính xác `[Tên văn bản, Điều X, khoản Y, điểm Z]`.
+- **Phân luồng thông minh:** Tự động phân biệt câu hỏi pháp lý, giao tiếp xã hội thân thiện và các câu lạc đề/ngoài phạm vi.
+- **Giao diện pháp lý trang trọng:** Streamlit UI tùy biến phong cách tư pháp nghiêm chỉnh, ẩn toàn bộ thông số kỹ thuật đối với người dùng cuối.
 
 ---
 
@@ -20,36 +26,26 @@ Hệ thống được thiết kế chuyên biệt để giải quyết các vấ
 [Người dùng]
     │
     ▼
-[Streamlit Frontend (Port 8501)]
-    │ HTTP / Python
-    ▼
-[FastAPI Backend (Port 8000)]
+[Streamlit Legal UI (Port 8501)]  <──>  [FastAPI Backend (Port 8000)]
     │
     ▼
-[Scope Validator] ── (Ngoài phạm vi) ──> [Từ chối ngay lập tức (0ms)]
-    │ (Hợp lệ)
+[Scope Validator] ──> (Giao tiếp xã hội / Lạc đề / Ngoài phạm vi)
+    │ (Câu hỏi pháp lý giao thông)
     ▼
-┌──────────────────────────────────────────────┐
-│            HYBRID SEARCH ENGINE              │
-│  BM25Plus (Từ khóa) + Qdrant BGE-M3 (Vector)  │
-│                      ↓                       │
-│          Reciprocal Rank Fusion (RRF)        │
-└──────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────┐
+│               HYBRID SEARCH ENGINE                │
+│  QueryExpander -> BM25Plus + Qdrant BGE-M3 -> RRF │
+│        (1,268 chunks: Luật 36 + NĐ 168)           │
+└───────────────────────────────────────────────────┘
     │
     ▼
-[Cross-Reference Expander] (Tự động mở rộng Điều dẫn chiếu)
+[Cross-Reference Expander] + [Context Builder & AI Skill]
     │
     ▼
-[Context Builder] (Đóng gói Prompt & Căn cứ pháp lý)
+[LLM Engine (Groq Qwen 3.8 27B / OpenRouter Fallback)]
     │
     ▼
-[OpenRouter LLM (NVIDIA Nemotron 3 Ultra)]
-    │
-    ▼
-[Citation Validator] (Kiểm tra chéo tính xác thực của Điều/Khoản)
-    │
-    ▼
-[Trả lời người dùng kèm Căn cứ & Thông số kỹ thuật]
+[Citation Validator] -> [Câu trả lời ngắn gọn kèm Căn cứ pháp lý]
 ```
 
 ---
@@ -57,62 +53,51 @@ Hệ thống được thiết kế chuyên biệt để giải quyết các vấ
 ## 🚀 3. Cài đặt và Khởi chạy
 
 ### 3.1. Cài đặt môi trường
-Yêu cầu: Python >= 3.11, < 3.15.
+Yêu cầu: Python >= 3.11.
 
 ```bash
-# Tạo môi trường ảo
 python3 -m venv .venv
 source .venv/bin/activate
-
-# Cài đặt toàn bộ dependencies
 pip install -e ".[dev]"
 ```
 
 ### 3.2. Cấu hình biến môi trường
-Tạo file `.env` từ `.env.example`:
 ```bash
 cp .env.example .env
 ```
-Điền OpenRouter API Key vào `.env`:
+Điền API Key của bạn vào `.env` (khuyên dùng **Groq** tốc độ cao, hoặc **OpenRouter**):
 ```env
-OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxx
-OPENROUTER_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free
+LLM_PROVIDER=groq
+GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
+GROQ_MODEL=qwen/qwen3.8-27b
 ```
 
-### 3.3. Xử lý dữ liệu & Tạo chỉ mục
+### 3.3. Nạp dữ liệu & Xây dựng chỉ mục
 ```bash
-# 1. Parse văn bản và tạo chunks
+# 1. Parse Luật 36/2024/QH15 + Nghị định 168/2024/NĐ-CP -> 1,268 chunks
 python scripts/run_ingestion.py
 
-# 2. Xây dựng BM25 và Vector index vào Qdrant
+# 2. Xây dựng BM25 và Qdrant Vector index (thêm CUDA_VISIBLE_DEVICES="" nếu chạy CPU)
 python scripts/build_indexes.py
 ```
 
 ### 3.4. Khởi chạy Ứng dụng
-
-* **Cách 1: Khởi chạy Giao diện Web Streamlit (Khuyên dùng):**
+- **Giao diện Web (Streamlit):**
   ```bash
-  .venv/bin/streamlit run src/ui/app.py
+  streamlit run src/ui/app.py
   ```
   Truy cập: `http://localhost:8501`
 
-* **Cách 2: Khởi chạy FastAPI Backend:**
+- **API Server (FastAPI):**
   ```bash
-  .venv/bin/uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+  uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
   ```
-  Tài liệu Swagger API: `http://localhost:8000/docs`
+  Swagger Docs: `http://localhost:8000/docs`
 
 ---
 
-## 🧪 4. Kiểm thử & Đánh giá Nghiệm thu
+## 🧪 4. Kiểm thử
 
-* **Chạy toàn bộ Unit Tests & Integration Tests:**
-  ```bash
-  .venv/bin/pytest tests/
-  ```
-
-* **Chạy bộ Benchmark Nghiệm thu 25 câu hỏi chuẩn (FR-08):**
-  ```bash
-  .venv/bin/python scripts/run_evaluation.py
-  ```
-  Báo cáo chi tiết được lưu tại: `data/evaluation/evaluation_report.md`.
+```bash
+pytest tests/
+```

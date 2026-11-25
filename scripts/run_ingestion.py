@@ -19,7 +19,9 @@ logger = setup_logger("run_ingestion")
 def run_ingestion():
     settings = get_settings()
     input_file = settings.INPUT_DIR / "luat_giao_thong_2024_clean.docx"
-    nd168_file = settings.PROCESSED_DIR / "nghi_dinh_168_2024_clean.txt"
+    nd168_file = settings.INPUT_DIR / "nghi_dinh_168_2024_clean.txt"
+    if not nd168_file.exists():
+        nd168_file = settings.PROCESSED_DIR / "nghi_dinh_168_2024_clean.txt"
     output_doc_json = settings.PROCESSED_DIR / "law_document.json"
     output_nd168_json = settings.PROCESSED_DIR / "nghi_dinh_168_document.json"
     output_chunks_jsonl = settings.PROCESSED_DIR / "chunks.jsonl"
