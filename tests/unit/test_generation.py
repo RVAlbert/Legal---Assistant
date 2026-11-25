@@ -111,3 +111,47 @@ def test_context_builder_format():
     assert messages[0]["role"] == "system"
     assert "Điều 58" in messages[1]["content"]
     assert "Điểm GPLX là gì?" in messages[1]["content"]
+
+
+def test_extractive_fallback_semantic_intent():
+    from src.generation.generator import LegalRAGAssistant
+    from unittest.mock import MagicMock
+    
+    mock_hybrid = MagicMock()
+    assistant = LegalRAGAssistant(hybrid_engine=mock_hybrid)
+    
+    source_dieu_9 = SearchResult(
+        chunk_id="d9", score=0.03, rank=1,
+        document_id="doc", law_number="36", law_name="Luật",
+        chapter_number=1, chapter_title="Chung",
+        article_number=9, article_title="Hành vi cấm",
+        clause_number=2, point=None,
+        text="Cấm điều khiển phương tiện khi có nồng độ cồn.",
+        raw_content="Khoản 2. Điều khiển phương tiện tham gia giao thông đường bộ mà trong máu hoặc hơi thở có nồng độ cồn.",
+    )
+    
+    # 1. Người uống rượu nhưng được người khác chở về -> Phải cho phép, không cấm
+    ans_passenger = assistant._generate_extractive_fallback(
+        query="nếu mà mình nhậu mà được người khác chở về thì có bị sao không bạn",
+        sources=[source_dieu_9],
+        scope_status=ScopeStatus.ANSWERED,
+    )
+    assert "HOÀN TOÀN ĐƯỢC PHÉP" in ans_passenger
+    assert "không cấm người ngồi sau xe hoặc hành khách" in ans_passenger
+    
+    # 2. Người uống rượu tự lái xe -> Tuyệt đối cấm
+    ans_driver = assistant._generate_extractive_fallback(
+        query="uống 1 lon bia lái xe được không",
+        sources=[source_dieu_9],
+        scope_status=ScopeStatus.ANSWERED,
+    )
+    assert "TUYỆT ĐỐI NGHIÊM CẤM" in ans_driver
+    
+    # 3. Dừng xe nghe điện thoại -> Được phép
+    ans_phone_stopped = assistant._generate_extractive_fallback(
+        query="dừng xe tấp vào lề nghe điện thoại có bị phạt không",
+        sources=[source_dieu_9],
+        scope_status=ScopeStatus.ANSWERED,
+    )
+    assert "ĐƯỢC PHÉP SỬ DỤNG ĐIỆN THOẠI" in ans_phone_stopped
+
