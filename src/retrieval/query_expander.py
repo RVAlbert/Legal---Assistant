@@ -28,6 +28,11 @@ COLLOQUIAL_SEMANTIC_MAPPINGS: List[Tuple[str, str]] = [
         r"\b(xe máy|xe gắn máy)\b",
         "xe mô tô xe gắn máy",
     ),
+    # Xi-nhan, chuyển hướng, chuyển làn
+    (
+        r"\b(xi-nhan|xi nhan|xinhan|chuyển hướng|rẽ trái|rẽ phải|chuyển làn)\b",
+        "chuyển hướng không có tín hiệu báo hướng rẽ chuyển làn đường không có tín hiệu báo trước",
+    ),
     # Đèn tín hiệu giao thông
     (
         r"\b(vượt đèn đỏ|vượt đèn vàng|vượt đèn|đèn đỏ|đèn vàng)\b",

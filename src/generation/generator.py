@@ -62,11 +62,16 @@ class LegalRAGAssistant:
                 latency_ms=round(latency, 1),
             )
 
-        # 2. Tìm kiếm tài liệu bằng Hybrid Search
-        search_results = self.hybrid_engine.search(query, top_k=self.top_k)
+        # 2. Mở rộng ngữ cảnh hội thoại cho truy vấn tìm kiếm nếu là câu hỏi nối tiếp ("lỗi đó", "còn xe máy thì sao"...)
+        retrieval_query = self._build_contextual_retrieval_query(query, chat_history)
+        if retrieval_query != query:
+            logger.info(f"Truy vấn gắn ngữ cảnh hội thoại: \"{query}\" -> \"{retrieval_query}\"")
+
+        # Tìm kiếm tài liệu bằng Hybrid Search
+        search_results = self.hybrid_engine.search(retrieval_query, top_k=self.top_k)
 
         # 3. Đánh giá phạm vi sau tìm kiếm (Post-retrieval scope check)
-        post_check = self.scope_validator.assess_post_retrieval(query, search_results)
+        post_check = self.scope_validator.assess_post_retrieval(retrieval_query, search_results)
         if post_check.status == ScopeStatus.OUT_OF_SCOPE:
             latency = (time.time() - start_time) * 1000
             return GenerationResponse(
@@ -123,6 +128,41 @@ class LegalRAGAssistant:
             warnings=warnings,
             latency_ms=round(latency, 1),
         )
+
+    def _build_contextual_retrieval_query(
+        self,
+        query: str,
+        chat_history: Optional[list] = None,
+    ) -> str:
+        """Gắn ngữ cảnh câu hỏi trước vào truy vấn tìm kiếm nếu người dùng đang hỏi nối tiếp (ví dụ: 'lỗi đó phạt bao nhiu tiền')."""
+        if not chat_history:
+            return query
+
+        clean_q = query.strip().lower()
+        followup_markers = [
+            "lỗi đó", "lỗi này", "cái đó", "cái này", "vậy thì", "thế thì",
+            "như vậy", "trường hợp đó", "hành vi đó", "nó ", "còn ", "vậy ",
+            "phạt bao", "mức phạt", "trừ mấy điểm", "bị trừ điểm", "tước bằng",
+            "xe máy thì sao", "ô tô thì sao",
+        ]
+        is_followup = (
+            any(m in clean_q for m in followup_markers)
+            or len(clean_q.split()) <= 7
+        )
+        if not is_followup:
+            return query
+
+        # Lấy tối đa 2 câu hỏi gần nhất của user để giữ trọn chủ đề đang trao đổi
+        prev_user_msgs = [
+            m.get("content", "").strip()
+            for m in chat_history
+            if m.get("role") == "user" and m.get("content", "").strip()
+        ]
+        if not prev_user_msgs:
+            return query
+
+        recent_topic = " ".join(prev_user_msgs[-2:])
+        return f"{recent_topic} {query}"
 
     def _generate_extractive_fallback(
         self,
